@@ -1,0 +1,4 @@
+proposal/*
+!proposal/*.pdf
+!proposal/*.tex
+!proposal/*.sty
