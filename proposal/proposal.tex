@@ -9,6 +9,48 @@
 % inlined bib file
 \usepackage{filecontents}
 
+\begin{filecontents}[overwrite]{\jobname.bib}
+@article{classifier,
+    author = {Mochtak, Michal},
+    title = {Chasing the authoritarian spectre: Detecting authoritarian discourse with large language models},
+    journal = {European Journal of Political Research},
+    volume = {64},
+    number = {3},
+    pages = {1304-1325},
+    keywords = {detecting authoritarianism, deep learning, model, political discourse, authoritarian discourse},
+    doi = {https://doi.org/10.1111/1475-6765.12740},
+    url = {https://ejpr.onlinelibrary.wiley.com/doi/abs/10.1111/1475-6765.12740},
+    eprint = {https://ejpr.onlinelibrary.wiley.com/doi/pdf/10.1111/1475-6765.12740},
+    abstract = {Abstract The paper introduces a deep-learning model fine-tuned for detecting authoritarian discourse in political speeches. Set up as a regression problem with weak supervision logic, the model is trained for the task of classification of segments of text for being/not being associated with authoritarian discourse. Rather than trying to define what an authoritarian discourse is, the model builds on the assumption that authoritarian leaders inherently define it. In other words, authoritarian leaders talk like authoritarians. When combined with the discourse defined by democratic leaders, the model learns the instances that are more often associated with authoritarians on the one hand and democrats on the other. The paper discusses several evaluation tests using the model and advocates for its usefulness in a broad range of research problems. It presents a new methodology for studying latent political concepts and positions as an alternative to more traditional research strategies.},
+    year = {2025}
+}
+@article{pushshift,
+    author       = {Jason Baumgartner and Savvas Zannettou and Brian Keegan and Megan Squire and Jeremy Blackburn},
+    title        = {The Pushshift Reddit Dataset},
+    journal      = {CoRR},
+    volume       = {abs/2001.08435},
+    year         = {2020},
+    url          = {https://arxiv.org/abs/2001.08435},
+    eprinttype    = {arXiv},
+    eprint       = {2001.08435},
+    timestamp    = {Fri, 24 Jan 2020 15:00:57 +0100},
+    biburl       = {https://dblp.org/rec/journals/corr/abs-2001-08435.bib},
+    bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+@article{dump,
+    title= {Reddit comments/submissions 2005-06 to 2025-06},
+    journal= {},
+    author= {stuck\_in\_the\_matrix and Watchful1 and RaiderBDev},
+    year= {},
+    url= {},
+    abstract= {Reddit comments and submissions from 2005-06 to 2025-06 collected by pushshift and u/RaiderBDev. These are zstandard compressed ndjson files. Example python scripts for parsing the data can be found here https://github.com/Watchful1/PushshiftDumps The more recent dumps are collected by u/RaiderBDev},
+    keywords= {'reddit'},
+    terms= {},
+    license= {},
+    superseded= {}
+}
+\end{filecontents}
+
 %-------------------------------------------------------------------------------
 \begin{document}
 %-------------------------------------------------------------------------------
@@ -36,9 +78,16 @@ leowang@terpmail.umd.edu
 \section{Motivation}
 %-------------------------------------------------------------------------------
 
-What is it you are trying to solve?
-Why is it important?
-What is the question that this is trying to solve?
+% What is it you are trying to solve?
+% Why is it important?
+% What is the question that this is trying to solve?
+
+Authoritarianism is a common field of research, especially in the context of global politics and leaders. However, understanding how it propagates in and is used by the common person is understudied. To this end, this project will be analyzing the usage of authoritarian language by community (subreddit) moderators across Reddit. The bulk of the work will be testing for correlations to a variety secondary factors, including but not limited to: size of subreddit, number of subreddits moderated, comparison to the general non-moderator population (globally and within their specific subreddit), differences in interactions with subreddits the user does/does not moderate, and how active a moderator is.
+
+% TODO:
+% This is certainly a bit of stretch and arguably we can't actually make these conclusions with full confidence
+% However I'm pretty sure we need more of a justification than just "its cool and interesting"
+Language will be classified by its relation to the language used by commonly recognized political authoritarian figures. This allows the paper to draw a larger conclusion about how (or if) traditional authoritarian language maps to the power dynamics present within subreddits, and if so, what factors could cause the common person to trend towards authoritarian practices.
 
 %-------------------------------------------------------------------------------
 \section{Prior Work}
@@ -50,15 +99,24 @@ Nothing in depth at this time (that comes with the Intermediate report writeup),
 \section{Methodology}
 %-------------------------------------------------------------------------------
 
-Low-level details aren't strictly needed at this time, but what broadly do you intend to do? Create a new tool? Collect a new dataset? Analyze and existing dataset?
+% Low-level details aren't strictly needed at this time, but what broadly do you intend to do? Create a new tool? Collect a new dataset? Analyze and existing dataset?
+
+The central work of this project is analyzing existing databases and supplementing it as needed. Authoritarian language of a user will be sourced from their comments and posts and measured through an existing authoritarian language classifier~\cite{classifier}. These comments and posts will be sourced through the Pushshift comment dumps and its related API~\cite{pushshift, dump}, with additional required metadata gathered either through other such databases or manually scrapped.
 
 %-------------------------------------------------------------------------------
 \section{Evaluation}
 %-------------------------------------------------------------------------------
 
-What are your metrics for success? Performance? Privacy? Predictive ability of a new model?
-Will you be comparing to any other prior approaches?
+% What are your metrics for success? Performance? Privacy? Predictive ability of a new model?
+% Will you be comparing to any other prior approaches?
+Because this is an open-ended, exploratory problem, evaluation will be based on how holistic of a model we can build (i.e. incorporating as many secondary variables as possible). The final goal is to be able to build a conclusion about the trends of authoritarian language in subreddit moderators.
+
+\bibliographystyle{plain}
+\bibliography{\jobname}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \end{document}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%  LocalWords:  endnotes includegraphics fread ptr nobj noindent
+%%  LocalWords:  pdflatex acks
