@@ -115,12 +115,12 @@ leowang@terpmail.umd.edu
 % Why is it important?
 % What is the question that this is trying to solve?
 
-Authoritarianism is a common field of research, especially in the context of global politics and leaders. However, understanding how it propagates in and is used by the common person is understudied. To this end, this project will be analyzing the usage of authoritarian language by community (subreddit) moderators across Reddit. The bulk of the work will be testing for correlations to a variety secondary factors, including but not limited to: size of subreddit, number of subreddits moderated, comparison to the general non-moderator population (globally and within their specific subreddit), differences in interactions with subreddits the user does/does not moderate, and how active a moderator is.
+Authoritarianism is a common field of research, especially in the context of global politics and leaders. However, understanding how it propagates in and is used by the common person is understudied. To this end, this project will be analyzing the usage of authoritarian language by community (subreddit) moderators across Reddit. The bulk of the work will be testing for correlations to a variety secondary factors, including but not limited to: size of subreddit, number of subreddits moderated, comparison to the general non-moderator population (globally and within their specific subreddit), differences in interactions with subreddits the user does/does not moderate, and how active a moderator is. This offers insights on the psychological aspects of holding a position of power in an online community and how it is reflected in their diction.
 
 % TODO:
 % This is certainly a bit of stretch and arguably we can't actually make these conclusions with full confidence
 % However I'm pretty sure we need more of a justification than just "its cool and interesting"
-Language will be classified by its relation to the language used by commonly recognized political authoritarian figures. This allows the paper to draw a larger conclusion about how (or if) traditional authoritarian language maps to the power dynamics present within subreddits, and if so, what factors could cause the common person to trend towards authoritarian practices.
+Language will be classified by its relation to the language used by commonly recognized political authoritarian figures. This allows the paper to test whether traditional authoritarian language maps to the power dynamics present within subreddits, and if so, what factors could cause the common person to trend towards authoritarian practices.
 
 %-------------------------------------------------------------------------------
 \section{Prior Work}
@@ -135,7 +135,9 @@ This work is centered around the application of an existing authoritarian langua
 
 % Low-level details aren't strictly needed at this time, but what broadly do you intend to do? Create a new tool? Collect a new dataset? Analyze and existing dataset?
 
-The central work of this project is analyzing existing databases and supplementing it as needed. Authoritarian language of a user will be sourced from their comments and posts and measured through an existing authoritarian language classifier~\cite{classifier}. These comments and posts will be sourced through the Pushshift comment dumps and its related API~\cite{pushshift, dump}, with additional required metadata gathered either through other such databases or manually scrapped.
+The central work of this project is analyzing existing databases and supplementing it as needed. Authoritarian language of a user will be sourced from their comments and posts and measured through an existing authoritarian language classifier~\cite{classifier}. These comments and posts will be sourced through the Pushshift comment dumps and its related API~\cite{pushshift, dump}, with additional required metadata gathered either through other such databases or manually scraped.
+
+Text from the Pushshift comment dumps can then be measured for authoritarian language using the aforementioned classifier to test and draw conclusions. Much of this work will consist of analyzing and testing comments and posts from users who meet specific criteria against those from Reddit moderators.
 
 %-------------------------------------------------------------------------------
 \section{Evaluation}
@@ -143,7 +145,7 @@ The central work of this project is analyzing existing databases and supplementi
 
 % What are your metrics for success? Performance? Privacy? Predictive ability of a new model?
 % Will you be comparing to any other prior approaches?
-Because this is an open-ended, exploratory problem, evaluation will be based on how holistic the resultant model is (i.e. incorporating as many secondary variables as possible). The final goal is to be able to build a conclusion about the trends of authoritarian language in subreddit moderators.
+Because this is an open-ended, exploratory problem, evaluation will primarily be based on how holistic the resultant model is (i.e. incorporating as many secondary variables as possible). Additionally, evaluation will be based on the confidence level of the correlation of variables in the resultant model, as well as how reasonable the results appear when compared to a smaller scale manual inspection. The final goal is to be able to build a conclusion about the trends of authoritarian language in subreddit moderators.
 
 \bibliographystyle{plain}
 \bibliography{\jobname}
