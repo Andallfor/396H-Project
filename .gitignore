@@ -2,3 +2,10 @@ proposal/*
 !proposal/*.pdf
 !proposal/*.tex
 !proposal/*.sty
+
+.vscode
+*.zst
+__pycache__
+data/backup/*
+data/database.db
+processed.txt
