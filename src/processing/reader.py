@@ -3,6 +3,8 @@
 import zstandard
 import json
 import os
+import time
+import datetime
 
 class Reader():
     def __init__(self, file):
@@ -25,12 +27,20 @@ class Reader():
             return self._read_and_decode(reader, chunk_size, max_window_size, chunk, bytes_read)
 
     def read(self, num = -1):
+        startTime = time.time()
+
         with open(self.file, 'rb') as file_handle:
             def _print():
-                percent = file_handle.tell() / self.size
-                barLen = 20
+                sz = file_handle.tell()
+                percent = sz / self.size
+                barLen = 50
                 bar = f'{'=' * int(percent * barLen)}{' ' * int(barLen - percent * barLen)}'
-                print(f'{self.file} ({self.valid}/{self.invalid}/{self.valid + self.invalid}) -- [{bar}] {int(percent * 100)}%')
+                ln = f'({self.valid}/{self.invalid}/{self.valid + self.invalid})'
+                pt = f'{int(percent * 100)}% ({self._bFmt(sz)}/{self._bFmt(self.size)})'
+
+                eta = self._tFmt((1 / percent - 1) * (time.time() - startTime)) if percent != 0 else 'Unknown'
+
+                print(f'\r{self.file} {ln} -- [{bar}] {pt} -- ETA: {eta}', end='')
 
             _print()
 
@@ -51,13 +61,28 @@ class Reader():
                         except:
                             self.invalid += 1
 
-                        if (self.valid + self.invalid) % 100_000 == 0:    
-                            _print()
-
                         if num != -1 and (self.valid + self.invalid) >= num:
                             _print()
                             return
 
                     buffer = lines[-1]
+                    _print()
 
             _print()
+
+    def _bFmt(self, num, suffix="B"): # https://stackoverflow.com/questions/1094841/get-a-human-readable-version-of-a-file-size
+        for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+            if abs(num) < 1024.0:
+                return f"{num:3.1f} {unit}{suffix}"
+            num /= 1024.0
+        return f"{num:.1f} Yi{suffix}"
+    
+    def _tFmt(self, seconds): # https://gist.github.com/borgstrom/936ca741e885a1438c374824efb038b3
+        if seconds == 0:
+            return 'inf'
+        parts = []
+        for unit, div in (('hour', 3600), ('min', 60), ('sec', 1)):
+            amount, seconds = divmod(int(seconds), div)
+            if amount > 0:
+                parts.append('{} {}{}'.format(amount, unit, "" if amount == 1 else "s"))
+        return ', '.join(parts)

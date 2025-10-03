@@ -9,3 +9,4 @@ __pycache__
 data/backup/*
 data/database.db
 processed.txt
+log.txt

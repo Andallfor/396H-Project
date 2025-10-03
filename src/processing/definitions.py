@@ -1,4 +1,5 @@
 from enum import Enum
+from abc import ABC, abstractmethod
 
 # ERROR means we encountered an unexpected value
 

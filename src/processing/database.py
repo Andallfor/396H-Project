@@ -9,6 +9,8 @@ from processing.definitions import RemovalType, Collapsed, Distinguished, Subred
 
 class Database:
     def __init__(self, database = "data/database.db", clear = False, writable = False):
+        open(database, 'a').close() # mildly cursed. make database file if it does not exist
+
         if writable:
             # make backup of database incase something breaks
             shutil.copyfile(database, f'data/backup/backup-{time.time()}.db')
@@ -68,10 +70,7 @@ class Database:
         boolReplace = re.compile(r'(\w+)\sBOOLEAN')
         for name, typ in self.definitions.items():
             if clear:
-                try:
-                    self.cur.execute(f'DELETE FROM {name}')
-                except:
-                    pass
+                self.cur.execute(f'DROP TABLE IF EXISTS {name}')
 
             schema = ','.join(typ['custom'] + typ['literal'])
             # boolean is not natively supported, so we define it as 0 or 1
@@ -97,18 +96,24 @@ class Database:
         if not isComments:
             raise NotImplementedError("Currently only support comments")
         else:
+            self.logHandle = open('data/log.txt', 'w')
             self._rc(file, numLines)
+            self.logHandle.close()
     
     def _rc(self, file, numLines):
         def ins(key, value):
             buf[key].append(value)
             counter[key] += 1
 
+        BUFFER_MAX_LENGTH = 100_000
+        if numLines != -1:
+            BUFFER_MAX_LENGTH = min(BUFFER_MAX_LENGTH, numLines)
+        
+        print(f'=== Reading {'all' if numLines == -1 else numLines} lines from {file} ===')
+
         # need to bulk insert into table for performance
         buf = self._defHeaders(self.definitions['comments'])
         counter = self._defHeaders(self.definitions['comments'], False)
-
-        bufMaxLen = 1_000
 
         # we assume sentences end with . ? !
         sentenceDelimiter = re.compile(r'(?:\.|\?|!)\s')
@@ -123,7 +128,7 @@ class Database:
 
             ins('num_sentences',   len(re.findall(sentenceDelimiter, obj['body'])) + 1)
             ins('num_awards',      len(obj['all_awardings']))
-            ins('num_mod_reports', len('mod_reports'))
+            ins('num_mod_reports', len(obj['mod_reports']))
             ins('edited',          isinstance(obj['edited'], int))
 
             ins('removal_type',    RemovalType.make(obj).value)
@@ -132,12 +137,10 @@ class Database:
             ins('subreddit_type',  SubredditType.make(obj).value)
 
             # clear buffer and insert values into table
-            if ind != 0 and ind % bufMaxLen == 0:
+            if ind != 0 and ind % BUFFER_MAX_LENGTH == 0:
                 self._insert(buf, 'comments')
 
                 buf = self._defHeaders(self.definitions['comments'])
-            
-            # print(ind)
         
         if max([len(v) for v in buf.values()]) > 0:
             self._insert(buf, 'comments')
@@ -148,13 +151,9 @@ class Database:
 
         # we expect all keys to have the same num values
         m = max([len(v) for v in buf.values()])
-        didErr = False
         for c in col:
             if len(buf[c]) != m:
-                didErr = True
-                print(f'WARN: Column {c} has length {len(buf[c])} (expected {m})')
-        if didErr:
-            print() # extra line so that the loading bar in Reader doesnt overwrite this
+                self.logHandle.write(f'WARN: Column {c} has length {len(buf[c])} (expected {m})\n')
         
         for i in range(m):
             v = []
@@ -171,10 +170,9 @@ class Database:
             values.append(f'({','.join(v)})')
         
         if len(values) == 0:
-            print(f"WARN: Attempted to insert with no values! (m={m})")
+            self.logHandle.write(f"WARN: Attempted to insert with no values! (m={m})\n")
             return
 
         cmd = f'INSERT INTO {table} ({','.join(col)}) VALUES {','.join(values)};'
-        print(f"Inserting {m} rows")
         self.cur.execute(cmd)
         self.con.commit()
