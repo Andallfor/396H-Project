@@ -10,3 +10,4 @@ data/backup/*
 data/database.db
 processed.txt
 log.txt
+.venv
