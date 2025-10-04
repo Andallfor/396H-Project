@@ -1,32 +1,41 @@
 # IMPORTANT: expects working path to be root!
 
+INPUT = "data"
+PROCESSED = 'data/processed.txt'
+DATABASE = 'data/database.db'
+BACKUP = 'data/backup'
+
 if __name__ == '__main__':
     from glob import glob
     import os
     from processing.database import Database
 
-    if not os.path.exists('data/processed.txt'):
-        open('data/processed.txt', 'w').close()
+    os.makedirs(os.path.dirname(PROCESSED), exist_ok = True)
+    if not os.path.exists(PROCESSED):
+        open(PROCESSED, 'w').close()
 
     # figure out what files we need to read
     processed = set()
-    processedHandle = open('data/processed.txt', 'r')
+    processedHandle = open(PROCESSED, 'r')
     if processedHandle.readable():
         for line in processedHandle.readlines():
             processed.add(line.strip())
     processedHandle.close()
 
     todo = []
-    for x in glob('data/RC*.zst'): # for now, we only accept comment data
+    for x in glob(os.path.join(INPUT, 'RC*.zst')): # for now, we only accept comment data
         if x not in processed:
             todo.append(x)
+        else:
+            print(f'Skipping {x} as it has been marked as already processed')
 
     # load in databases
     if len(todo) > 0:
-        processedHandle = open('data/processed.txt', 'a')
-        db = Database(clear = True, writable = True)
+        processedHandle = open(PROCESSED, 'a')
+        db = Database(database = DATABASE, backupLoc = BACKUP, clear = True, writable = True, backup = False)
         for t in todo:
-            db.read(t, True)
-            processedHandle.write(t + '\n')
+            db.read(t, True, 5_000_000)
+            #processedHandle.write(t + '\n')
+            pass
         
         processedHandle.close()

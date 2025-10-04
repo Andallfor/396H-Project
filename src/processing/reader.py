@@ -10,6 +10,7 @@ class Reader():
     def __init__(self, file):
         self.file = file
         self.size = os.stat(file).st_size
+        self.sz = 0
 
         self.valid = 0
         self.invalid = 0
@@ -28,19 +29,27 @@ class Reader():
 
     def read(self, num = -1):
         startTime = time.time()
+        self.lastMsg = 0
 
         with open(self.file, 'rb') as file_handle:
             def _print():
-                sz = file_handle.tell()
-                percent = sz / self.size
+                self.sz = file_handle.tell()
+                percent = self.sz / self.size if num == -1 else ((self.valid + self.invalid) / num)
                 barLen = 50
                 bar = f'{'=' * int(percent * barLen)}{' ' * int(barLen - percent * barLen)}'
                 ln = f'({self.valid}/{self.invalid}/{self.valid + self.invalid})'
-                pt = f'{int(percent * 100)}% ({self._bFmt(sz)}/{self._bFmt(self.size)})'
+                pt = f'{int(percent * 100)}% ({Reader._bFmt(self.sz)}/{Reader._bFmt(self.size)})'
 
-                eta = self._tFmt((1 / percent - 1) * (time.time() - startTime)) if percent != 0 else 'Unknown'
+                if percent == 1:
+                    eta = 'Done'
+                elif percent == 0:
+                    eta = 'Unknown'
+                else:
+                    eta = Reader._tFmt((1 / percent - 1) * (time.time() - startTime))
 
-                print(f'\r{self.file} {ln} -- [{bar}] {pt} -- ETA: {eta}', end='')
+                msg = f'{self.file} {ln} -- [{bar}] {pt} -- ETA: {eta}'
+                print(f'\r{' ' * self.lastMsg}\r{msg}', end='')
+                self.lastMsg = len(msg)
 
             _print()
 
@@ -70,14 +79,16 @@ class Reader():
 
             _print()
 
-    def _bFmt(self, num, suffix="B"): # https://stackoverflow.com/questions/1094841/get-a-human-readable-version-of-a-file-size
+    @staticmethod
+    def _bFmt(num, suffix="B"): # https://stackoverflow.com/questions/1094841/get-a-human-readable-version-of-a-file-size
         for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
             if abs(num) < 1024.0:
                 return f"{num:3.1f} {unit}{suffix}"
             num /= 1024.0
         return f"{num:.1f} Yi{suffix}"
     
-    def _tFmt(self, seconds): # https://gist.github.com/borgstrom/936ca741e885a1438c374824efb038b3
+    @staticmethod
+    def _tFmt(seconds): # https://gist.github.com/borgstrom/936ca741e885a1438c374824efb038b3
         if seconds == 0:
             return 'inf'
         parts = []
