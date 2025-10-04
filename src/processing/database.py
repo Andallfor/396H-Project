@@ -143,7 +143,7 @@ class Database:
             for col in [x.split(' ')[0] for x in self.definitions['comments']['literal']]:
                 ins(col, obj[col])
 
-            ins('num_sentences',   len(re.findall(sentenceDelimiter, obj['body'])) + 1)
+            ins('num_sentences',   len(re.findall(sentenceDelimiter, obj['body'])))
             ins('edited',          not isinstance(obj['edited'], bool))
 
             ins('removal_type',    RemovalType.make(obj).value)
