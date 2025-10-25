@@ -11,22 +11,22 @@
 #include <regex>
 #include <generator>
 #include <functional>
+#include <format>
 
 #include <SQLiteCpp.h>
 
 #include "reader.hpp"
 #include "types.hpp"
+#include "timing.hpp"
 
 namespace fs = std::filesystem;
 
-const std::regex sd_r_str = std::regex("(\")");
-#define RAW_TEXT(FIELD) {#FIELD, ST_TEXT, [](const Comment& json, std::string* out){ *out = '"' + json.FIELD + '"'; }}
-#define TEXT(FIELD) {#FIELD, ST_TEXT, [](const Comment& json, std::string* out){ *out = '"' + std::regex_replace(json.FIELD, sd_r_str, "$&$&") + '"'; }}
-#define INT(FIELD) {#FIELD, ST_INT, [](const Comment& json, std::string* out){ *out = std::to_string(json.FIELD); }}
-#define BOOL(FIELD) {#FIELD, ST_BOOL, [](const Comment& json, std::string* out){ *out = ((char) json.FIELD) + 48; }}
+#define RAW_TEXT(FIELD) {#FIELD, ST_TEXT, [](const Comment& json, std::string& out) { out = json.FIELD; }}
+#define INT(FIELD) {#FIELD, ST_INT, [](const Comment& json, std::string& out) { out = std::to_string(json.FIELD); }}
+#define BOOL(FIELD) {#FIELD, ST_BOOL, [](const Comment& json, std::string& out) { out = ((char) json.FIELD) + 48; }}
 
 enum SchemaType { ST_TEXT, ST_INT, ST_BOOL };
-using SchemaCallback = std::function<void(const Comment&, std::string*)>;
+using SchemaCallback = std::function<void(const Comment&, std::string&)>;
 
 // notice that all strings are encoded as utf8, so we dont need to do any conversions
 // https://github.com/ArthurHeitmann/arctic_shift/blob/bde0d2e8d41c0b6ade62ff79f69a77d633741482/file_content_explanations.md?plain=1#L12
@@ -90,22 +90,6 @@ class Database {
 private:
     const std::shared_ptr<Tables> tables;
     const std::shared_ptr<SQLite::Database> db;
-
-    void write(s_Buffer& buffer) {
-        SQLite::Transaction t(*db);
-        for (auto& table : buffer) {
-            std::string s = table.second.first.str();
-            if (s.size() == 0) continue;
-            s.resize(s.size() - 1); // remove trailing comma
-
-            std::string cmd = "INSERT INTO " + table.first + " (" + *table.second.second +  ") VALUES " + s + ";";
-            db->exec(cmd);
-
-            // clear stream
-            table.second.first.str("");
-        }
-        t.commit();
-    }
 public:
     Database(const std::string& file, const std::string& backup, const Tables& tables, bool clear = false)
     : tables(std::shared_ptr<Tables>(new Tables(tables))),
@@ -122,6 +106,10 @@ public:
             fs::copy_file(fp, bp);
         }
 
+        // if previous run left a journal (writes that had not been committed) remove
+        fs::path journal = file + "-journal";
+        if (fs::exists(journal)) fs::remove(journal);
+
         if (clear) {
             SQLite::Transaction t(*db);
             db->exec("DROP TABLE IF EXISTS comments");
@@ -131,46 +119,76 @@ public:
 
         SQLite::Transaction t(*db);
         for (const auto& table : tables) {
-            db->exec("CREATE TABLE IF NOT EXISTS " + table.first + " (" + table.second.columns() + ") STRICT;");
+            db->exec(std::format("CREATE TABLE IF NOT EXISTS {} ({}) STRICT;", table.first, table.second.columns()));
         }
         t.commit();
     }
 
-    void read(std::string& file, int count = -1, int bufLen = 100000) {
+    void read(std::string& file, int count = -1, int writeBuf = 50000, int insBuf = 5) {
         Reader reader(file, count);
 
-        if (count != -1) bufLen = std::min(bufLen, count / 10);
+        if (count != -1) writeBuf = std::min(writeBuf, count / 10);
 
-        // { table : (values to write, col)}
-        s_Buffer buffer;
-        for (const auto& table : *tables) buffer[table.first] = {{}, &table.second.columns_ins()};
+        std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> statements;
+        std::unordered_map<std::string, int> insBufCount;
+        for (const auto& table : *tables) {
+            std::string binds = "";
 
-        int _count = 0;
-        for (const auto& j : reader.decompress<Comment>(bufLen)) {
-            for (const auto& table : *tables) {
-                std::stringstream& ss = buffer[table.first].first;
-                std::vector<SchemaDef>& def = *table.second.def;
-
-                ss << "(";
-                int i = 0;
-                int m = def.size() - 1;
-                for (const auto& entry : def) {
-                    std::string out;
-                    entry.callback(j, &out);
-                    ss << out;
-
-                    if (i++ != m) ss << ",";
-                }
-                ss << "),";
+            for (int j = 0; j < insBuf; j++) {
+                binds += "(";
+                for (int i = 0; i < (int) table.second.def->size() - 1; i++) binds += "?,";
+                binds += "?),";
             }
 
-            if (_count != 0 && _count % bufLen == 0) write(buffer);
+            binds.resize(binds.size() - 1);
+
+            // for some reason compiler yells at me unless i do this
+            statements[table.first] = std::unique_ptr<SQLite::Statement>(
+                new SQLite::Statement{*db, std::format("INSERT INTO {} ({}) VALUES {}", table.first, table.second.columns_ins(), binds)});
+            
+            insBufCount[table.first] = 1;
+        }
+
+        // sqlitecpp transactions dont really like constantly being juggled so just do it manually
+        db->exec("BEGIN TRANSACTION");
+
+        int _count = 0;
+        for (const auto& j : reader.decompress<Comment>(writeBuf)) {
+#ifdef BENCHMARK_ENABLED
+            auto t_process = Benchmark::timestamp();
+#endif
+            for (const auto& table : *tables) {
+                std::vector<SchemaDef>& def = *table.second.def;
+
+                for (const auto& entry : def) {
+                    std::string out;
+                    entry.callback(j, out);
+
+                    statements[table.first]->bind(insBufCount[table.first]++, out);
+                }
+            }
+
+            if (_count != 0 && (_count + 1) % insBuf == 0) {
+                for (const auto& table : *tables) {
+                    statements[table.first]->exec();
+                    statements[table.first]->clearBindings();
+                    statements[table.first]->reset();
+                    insBufCount[table.first] = 1;
+                }
+            }
+#ifdef BENCHMARK_ENABLED
+            Benchmark::sum("Process", t_process);
+#endif
+            if (_count != 0 && _count % writeBuf == 0) {
+                db->exec("END TRANSACTION");
+                db->exec("BEGIN TRANSACTION");
+            }
 
             _count++;
             if (count != -1 && _count >= count) break;
         }
 
-        write(buffer);
+        db->exec("END TRANSACTION");
         reader.print_end();
     }
 };

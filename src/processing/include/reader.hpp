@@ -3,15 +3,16 @@
 
 #include <string>
 #include <stdio.h>
-#include <zstd.h>
 #include <iostream>
 #include <generator>
 #include <filesystem>
-#include <chrono>
 #include <exception>
+
+#include <zstd.h>
 #include <glaze/glaze.hpp>
 
 #include "types.hpp"
+#include "timing.hpp"
 
 namespace fs = std::filesystem;
 using time_point = std::chrono::system_clock::time_point;
@@ -38,31 +39,12 @@ private:
     std::string p_name;
 
     const std::string p_sizes[4] = {"B", "KiB", "MiB", "GiB"};
-    const std::pair<std::string, int64_t> p_times[3] = {{"hour", 3600}, {"min", 60}, {"sec", 1}};
 
     void bFmt(const size_t bytes, std::string& out) const {
         int s = 0;
         double count = bytes;
         while (count >= 1024 && s++ < 4) count /= 1024.0;
         out = std::format("{:.1f} {}", count, p_sizes[s]);
-    }
-
-    void tFmt(long sec, std::string& out) const {
-        if (sec < 1) out = "<1 sec";
-        else {
-            for (const auto& pair : p_times) {
-                long amt = sec / pair.second;
-                sec %= pair.second;
-
-                out += std::to_string(amt) + " " + pair.first;
-                if (amt != 1) out += "s";
-                if (pair.second != 1) out += ", ";
-            }
-        }
-    }
-
-    int64_t timeSinceStart() {
-        return floor<std::chrono::seconds>(std::chrono::system_clock::now() - p_start).count();
     }
 public:
     Reader(const std::string& file, size_t numLines = -1) {
@@ -82,7 +64,7 @@ public:
         dctx = ZSTD_createDCtx();
 
         p_total = (double) fs::file_size(file);
-        p_start = floor<std::chrono::seconds>(std::chrono::system_clock::now());
+        p_start = Benchmark::timestamp();
         p_name = fs::path(file).filename().string();
         p_total_lines = (double) numLines;
         bFmt(p_total, p_total_str);
@@ -109,11 +91,17 @@ public:
 
             ZSTD_inBuffer input = { in, read, 0 };
             while (input.pos < input.size) {
+#ifdef BENCHMARK_ENABLED
+                auto t_decompress = Benchmark::timestamp();
+#endif
                 ZSTD_outBuffer output = { out, out_sz, 0 };
 
                 const size_t ret = ZSTD_decompressStream(dctx, &output, &input);
                 std::string str((const char*) out, output.size);
-
+#ifdef BENCHMARK_ENABLED
+                // note that this isnt the most accurate; we dont consider initial file reading or buffer allocation time
+                Benchmark::sum("Decompress", t_decompress);
+#endif
                 int n;
                 while ((n = str.find('\n')) != -1) {
                     std::string entry = str.substr(0, n);
@@ -125,13 +113,17 @@ public:
                     }
 
                     if (p_lines++ % update_rate == 0) print();
-
+#ifdef BENCHMARK_ENABLED
+                    auto t_json = Benchmark::timestamp();
+#endif
                     T data{}; // look into caching this and only writing into the same object
                     auto err = glz::read<glz::opts{
                         .error_on_unknown_keys = false,
                         .partial_read = true,
                     }>(data, entry);
-
+#ifdef BENCHMARK_ENABLED
+                    Benchmark::sum("JSON", t_json);
+#endif
                     if (err) {
                         std::string s = "Unable to read line: " + std::to_string((uint32_t) err.ec);
                         if (exitOnErr) throw std::runtime_error(s);
@@ -164,7 +156,7 @@ public:
         std::string eta;
         if (percent == 1) eta = "Done";
         else if (percent == 0) eta = "Unknown";
-        else tFmt((1.0 / percent - 1.0) * timeSinceStart(), eta);
+        else Benchmark::tFmt((1.0 / percent - 1.0) * (double) Benchmark::elapsed(p_start), eta);
 
         ss << eta;
 
@@ -186,12 +178,15 @@ public:
         std::cout << "Size read: " << s << std::endl;
 
         s.clear();
-        double t = (double) timeSinceStart();
-        tFmt(t, s);
+        double t = (double) Benchmark::elapsed(p_start);
+        Benchmark::tFmt(t, s);
         std::cout << "Time elapsed: " << s << std::endl;
 
-        double l = (p_lines - p_invalid_lines) / t;
+        double l = (double) (p_lines - p_invalid_lines) / t;
         std::cout << "Lines/s: " << l << std::endl;
+
+        std::cout << std::endl;
+        Benchmark::print();
     }
 };
 

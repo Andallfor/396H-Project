@@ -1,6 +1,7 @@
+#define BENCHMARK_ENABLED
+
 #include <iostream>
 #include <string>
-#include <regex>
 #include "database.hpp"
 #include "reader.hpp"
 #include "types.hpp"
@@ -17,7 +18,17 @@ int main(int argc, const char** argv) {
     std::string p_db = "./database.db";
     std::string p_backup = "";
 #endif
-    std::regex sentence("(\\.|\\?|!|\\S$)(\\s|$)");
+    bool s_first[256] = {false};
+    s_first['.'] = true;
+    s_first['?'] = true;
+    s_first['!'] = true;
+    bool s_whitespace[256] = {false};
+    s_whitespace['\r'] = true;
+    s_whitespace['\n'] = true;
+    s_whitespace['\t'] = true;
+    s_whitespace['\f'] = true;
+    s_whitespace['\v'] = true;
+    s_whitespace[' '] = true;
 
     std::vector<SchemaDef> cd({
         RAW_TEXT(author),
@@ -27,7 +38,6 @@ int main(int argc, const char** argv) {
         RAW_TEXT(subreddit_id),
         RAW_TEXT(subreddit),
         RAW_TEXT(permalink),
-        TEXT(body),
         INT(created_utc),
         INT(controversiality),
         INT(score),
@@ -35,20 +45,36 @@ int main(int argc, const char** argv) {
         BOOL(locked),
         BOOL(is_submitter),
         BOOL(stickied),
-        {"num_sentences", ST_INT, [&sentence](const Comment& j, std::string* out) {
-            int count = std::distance(
-                std::sregex_iterator(j.body.begin(), j.body.end(), sentence),
-                std::sregex_iterator()
-            );
+        RAW_TEXT(body), // notice that we dont need to sanitize string since we write as a prepared statement
+        {"num_sentences", ST_INT, [&s_first, &s_whitespace](const Comment& j, std::string& out) {
+            // this is equivalent to ((\.|\?|!)\s)|(\S| )\n
+            // its not a perfect sentence matcher but generally close enough
+            // (importing a whole regex library for this seems overkill, so im just implementing it by hand)
 
-            *out = std::to_string(count);
+            // we pad end of string with new line so we dont need to worry about over reading string
+            std::string cp = j.body + "\n";
+
+            bool prev = false;
+            int len = j.body.size();
+            int count = 0;
+            for (int i = 0; i < len; i++) {
+                unsigned char c = cp[i];
+                unsigned char cc = cp[i + 1];
+                // notice that we assume no \r\n
+                if ((s_first[c] && s_whitespace[cc]) || ((!s_whitespace[c] || c == ' ') && cc == '\n')) {
+                    count++;
+                    i++;
+                }
+            }
+
+            out = std::to_string(count);
         }},
-        {"edited", ST_BOOL, [](const Comment& j, std::string* out) {
+        {"edited", ST_BOOL, [](const Comment& j, std::string& out) {
             // edited is either false or the timestamp it was edited
-            if (std::holds_alternative<bool>(j.edited)) *out = "0";
-            else *out = "1";
+            if (std::holds_alternative<bool>(j.edited)) out = "0";
+            else out = "1";
         }},
-        {"removal_type", ST_INT, [](const Comment& j, std::string* out) {
+        {"removal_type", ST_INT, [](const Comment& j, std::string& out) {
             RemovalEnum r = R_ERROR;
 
             if (j.removal_reason.has_value()) r = R_LEGAL;
@@ -61,9 +87,9 @@ int main(int argc, const char** argv) {
                   : R_ERROR;
             }
 
-            *out = 48 + (char) r;
+            out = 48 + (char) r;
         }},
-        {"collapsed", ST_INT, [](const Comment& j, std::string* out) {
+        {"collapsed", ST_INT, [](const Comment& j, std::string& out) {
             CollapsedEnum c = C_ERROR;
 
             if (!j.collapsed) c = C_NONE;
@@ -76,9 +102,9 @@ int main(int argc, const char** argv) {
                 }
             }
 
-            *out = 48 + (char) c;
+            out = 48 + (char) c;
         }},
-        {"distinguished", ST_INT, [](const Comment& j, std::string* out) {
+        {"distinguished", ST_INT, [](const Comment& j, std::string& out) {
             DistinguishedEnum d = D_ERROR;
 
             if (j.distinguished.has_value()) {
@@ -87,9 +113,9 @@ int main(int argc, const char** argv) {
                 else if (s == "admin") d = D_ADMIN;
             } else d = D_USER;
 
-            *out = 48 + (char) d;
+            out = 48 + (char) d;
         }},
-        {"subreddit_type", ST_INT, [](const Comment& j, std::string* out) {
+        {"subreddit_type", ST_INT, [](const Comment& j, std::string& out) {
             SubredditEnum r = S_ERROR;
 
             const std::string& s = j.subreddit_type;
@@ -99,7 +125,7 @@ int main(int argc, const char** argv) {
             else if (s == "user") r = S_USER;
             else if (s == "archived") r = S_ARCHIVED;
 
-            *out = 48 + (char) r;
+            out = 48 + (char) r;
         }}
     });
 
