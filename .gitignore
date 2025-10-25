@@ -11,3 +11,6 @@ data/database.db
 processed.txt
 log.txt
 .venv
+
+*.db
+src/processing/out
