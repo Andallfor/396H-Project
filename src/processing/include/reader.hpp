@@ -33,7 +33,7 @@ private:
     size_t p_lines = 0;
     size_t p_invalid_lines = 0;
     size_t p_last_len = 0;
-    double p_total_lines = -1;
+    double p_total_lines = 0;
     time_point p_start;
     std::string p_total_str;
     std::string p_name;
@@ -47,7 +47,7 @@ private:
         out = std::format("{:.1f} {}", count, p_sizes[s]);
     }
 public:
-    Reader(const std::string& file, size_t numLines = -1) {
+    Reader(const std::string& file, size_t numLines = 0) {
         handle = fopen(file.c_str(), "rb");
 
         if (!handle) {
@@ -112,7 +112,8 @@ public:
                         buf.clear();
                     }
 
-                    if (p_lines++ % update_rate == 0) print();
+                    if (p_lines % update_rate == 0) print();
+                    p_lines++;
 #ifdef BENCHMARK_ENABLED
                     auto t_json = Benchmark::timestamp();
 #endif
@@ -140,7 +141,7 @@ public:
     void print() {
         if (p_last_len != 0) std::cout << '\r';
 
-        double percent = (p_total_lines == -1) ? (double) p_read / p_total : (double) p_lines / p_total_lines;
+        double percent = (p_total_lines == 0) ? (double) p_read / p_total : (double) p_lines / p_total_lines;
         int index = 0;
 
         int barLen = 50;

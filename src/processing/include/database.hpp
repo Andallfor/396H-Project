@@ -21,9 +21,9 @@
 
 namespace fs = std::filesystem;
 
-#define RAW_TEXT(FIELD) {#FIELD, ST_TEXT, [](const Comment& json, std::string& out) { out = json.FIELD; }}
-#define INT(FIELD) {#FIELD, ST_INT, [](const Comment& json, std::string& out) { out = std::to_string(json.FIELD); }}
-#define BOOL(FIELD) {#FIELD, ST_BOOL, [](const Comment& json, std::string& out) { out = ((char) json.FIELD) + 48; }}
+#define RAW_TEXT(FIELD) {#FIELD, ST_TEXT, [](const auto& json, std::string& out) { out = json.FIELD; }}
+#define INT(FIELD) {#FIELD, ST_INT, [](const auto& json, std::string& out) { out = std::to_string(json.FIELD); }}
+#define BOOL(FIELD) {#FIELD, ST_BOOL, [](const auto& json, std::string& out) { out = ((char) json.FIELD) + 48; }}
 
 enum SchemaType { ST_TEXT, ST_INT, ST_BOOL };
 using SchemaCallback = std::function<void(const Comment&, std::string&)>;
@@ -36,7 +36,9 @@ struct SchemaDef {
     const SchemaType type;
     const SchemaCallback callback;
 
-    SchemaDef(const std::string& key, const SchemaType t, const SchemaCallback& callback) : key(key), type(t), callback(callback) {}
+    SchemaDef(const std::string& key, const SchemaType type, const SchemaCallback& callback) : key(key), type(type), callback(callback) {}
+    SchemaDef(const SchemaDef& a) : key(a.key), type(a.type), callback(a.callback) {}
+    SchemaDef() = delete;
 };
 
 struct Schema {
@@ -45,10 +47,8 @@ private:
     // will be in same order
     std::string cols;
     std::string head;
-public:
-    const std::shared_ptr<std::vector<SchemaDef>> def;
 
-    Schema(std::vector<SchemaDef>& def) : def(std::shared_ptr<std::vector<SchemaDef>>(new std::vector<SchemaDef>(def))) {
+    void init() {
         std::stringstream _cols;
         std::stringstream _head;
 
@@ -78,22 +78,29 @@ public:
         cols = _cols.str();
         head = _head.str();
     }
+public:
+    const std::string name;
+    const std::vector<SchemaDef> def;
+
+    Schema(const std::string& table, const std::vector<SchemaDef>& def) : name(table), def(def) { init(); }
+    Schema(const Schema& a) : name(a.name), def(a.def) { init(); }
+    Schema() = delete;
 
     const std::string& columns() const { return cols; }
     const std::string& columns_ins() const { return head; }
 };
 
-using Tables = std::vector<std::pair<std::string, Schema>>;
-using s_Buffer = std::unordered_map<std::string, std::pair<std::stringstream, const std::string*>>;
-
 class Database {
 private:
-    const std::shared_ptr<Tables> tables;
-    const std::shared_ptr<SQLite::Database> db;
+    const std::vector<Schema> tables;
+    SQLite::Database db;
+
+    Database(const Database&) = delete;
+    Database& operator=(const Database&) = delete;
 public:
-    Database(const std::string& file, const std::string& backup, const Tables& tables, bool clear = false)
-    : tables(std::shared_ptr<Tables>(new Tables(tables))),
-      db(new SQLite::Database(file, SQLite::OPEN_CREATE | SQLite::OPEN_READWRITE))
+    Database(const std::string& file, const std::string& backup, const std::vector<Schema>& tables, bool clear = false)
+    : tables(tables),
+      db(SQLite::Database(file, SQLite::OPEN_CREATE | SQLite::OPEN_READWRITE))
     {
         fs::path fp = file;
         fs::path bp = backup;
@@ -111,84 +118,88 @@ public:
         if (fs::exists(journal)) fs::remove(journal);
 
         if (clear) {
-            SQLite::Transaction t(*db);
-            db->exec("DROP TABLE IF EXISTS comments");
+            SQLite::Transaction t(db);
+            db.exec("DROP TABLE IF EXISTS comments");
             t.commit();
-            db->exec("VACUUM");
+            db.exec("VACUUM");
         }
 
-        SQLite::Transaction t(*db);
+        SQLite::Transaction t(db);
         for (const auto& table : tables) {
-            db->exec(std::format("CREATE TABLE IF NOT EXISTS {} ({}) STRICT;", table.first, table.second.columns()));
+            db.exec(std::format("CREATE TABLE IF NOT EXISTS {} ({}) STRICT;", table.name, table.columns()));
         }
         t.commit();
     }
 
-    void read(std::string& file, int count = -1, int writeBuf = 50000, int insBuf = 5) {
+    void read(const std::string& _table, const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5) {
         Reader reader(file, count);
 
-        if (count != -1) writeBuf = std::min(writeBuf, count / 10);
-
-        std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> statements;
-        std::unordered_map<std::string, int> insBufCount;
-        for (const auto& table : *tables) {
-            std::string binds = "";
-
-            for (int j = 0; j < insBuf; j++) {
-                binds += "(";
-                for (int i = 0; i < (int) table.second.def->size() - 1; i++) binds += "?,";
-                binds += "?),";
+        const Schema* table = nullptr;
+        for (const auto& t : tables) {
+            if (t.name == _table) {
+                table = &t;
+                break;
             }
-
-            binds.resize(binds.size() - 1);
-
-            // for some reason compiler yells at me unless i do this
-            statements[table.first] = std::unique_ptr<SQLite::Statement>(
-                new SQLite::Statement{*db, std::format("INSERT INTO {} ({}) VALUES {}", table.first, table.second.columns_ins(), binds)});
-            
-            insBufCount[table.first] = 1;
         }
 
-        // sqlitecpp transactions dont really like constantly being juggled so just do it manually
-        db->exec("BEGIN TRANSACTION");
+        if (table == nullptr) {
+            std::cerr << "Unknown table name " << _table << std::endl;
+            return;
+        }
 
-        int _count = 0;
+        if (count != 0) writeBuf = (int) std::min((size_t) writeBuf, count / 10);
+
+        std::stringstream sbind;
+        for (int j = 0; j < insBuf; j++) {
+            sbind << "(";
+            for (int i = 0; i < (int) table->def.size() - 1; i++) sbind << "?,";
+            sbind << "?)";
+            if (j != insBuf - 1) sbind << ",";
+        }
+
+        auto stmt = SQLite::Statement{db, std::format("INSERT INTO {} ({}) VALUES {}", table->name, table->columns_ins(), sbind.str())};
+
+        db.exec("BEGIN TRANSACTION");
+
+        int e_i = 0;
+        int e_len = table->def.size();
+        int ins_off = 0;
+        int ins_cnt = 0;
+        std::vector<std::string> writeBuffer(insBuf * e_len, "");
+
+        size_t _count = 0;
         for (const auto& j : reader.decompress<Comment>(writeBuf)) {
 #ifdef BENCHMARK_ENABLED
             auto t_process = Benchmark::timestamp();
 #endif
-            for (const auto& table : *tables) {
-                std::vector<SchemaDef>& def = *table.second.def;
-
-                for (const auto& entry : def) {
-                    std::string out;
-                    entry.callback(j, out);
-
-                    statements[table.first]->bind(insBufCount[table.first]++, out);
-                }
+            for (e_i = 0; e_i < e_len; e_i++) {
+                table->def[e_i].callback(j, writeBuffer[ins_cnt]);
+                stmt.bindNoCopy(ins_cnt + 1, writeBuffer[ins_cnt]);
+                ins_cnt++;
             }
 
             if (_count != 0 && (_count + 1) % insBuf == 0) {
-                for (const auto& table : *tables) {
-                    statements[table.first]->exec();
-                    statements[table.first]->clearBindings();
-                    statements[table.first]->reset();
-                    insBufCount[table.first] = 1;
-                }
+                stmt.exec();
+                stmt.clearBindings();
+                stmt.reset();
+                ins_cnt = 0;
+            }
+
+            if (_count != 0 && _count % writeBuf == 0) {
+                db.exec("END TRANSACTION");
+                db.exec("BEGIN TRANSACTION");
             }
 #ifdef BENCHMARK_ENABLED
             Benchmark::sum("Process", t_process);
 #endif
-            if (_count != 0 && _count % writeBuf == 0) {
-                db->exec("END TRANSACTION");
-                db->exec("BEGIN TRANSACTION");
-            }
 
             _count++;
-            if (count != -1 && _count >= count) break;
+            if (count != 0 && _count >= count) break;
         }
 
-        db->exec("END TRANSACTION");
+        db.exec("END TRANSACTION");
+        db.exec("PRAGMA optimize");
+
         reader.print_end();
     }
 };

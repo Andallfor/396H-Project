@@ -1,7 +1,8 @@
-#define BENCHMARK_ENABLED
+// #define BENCHMARK_ENABLED
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include "database.hpp"
 #include "reader.hpp"
 #include "types.hpp"
@@ -129,12 +130,12 @@ int main(int argc, const char** argv) {
         }}
     });
 
-    Tables t({
+    std::vector<Schema> t = {
         {"comments", cd}
-    });
+    };
 
     Database db(p_db, p_backup, t, true);
-    db.read(p_data, 5000000);
+    db.read("comments", p_data, 5000000);
 
     return 0;
 }
