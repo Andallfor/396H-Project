@@ -178,14 +178,16 @@ public:
                 ins_cnt++;
             }
 
-            if (_count != 0 && (_count + 1) % insBuf == 0) {
+            _count++;
+
+            if (_count % insBuf == 0) {
                 stmt.exec();
                 stmt.clearBindings();
                 stmt.reset();
                 ins_cnt = 0;
             }
 
-            if (_count != 0 && _count % writeBuf == 0) {
+            if (_count % writeBuf == 0) {
                 db.exec("END TRANSACTION");
                 db.exec("BEGIN TRANSACTION");
             }
@@ -193,7 +195,6 @@ public:
             Benchmark::sum("Process", t_process);
 #endif
 
-            _count++;
             if (count != 0 && _count >= count) break;
         }
 

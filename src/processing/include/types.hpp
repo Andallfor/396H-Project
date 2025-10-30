@@ -13,6 +13,9 @@ struct _CommentMeta {
 struct Comment {
     std::optional<_CommentMeta> _meta;
 
+    // look into using string_view (will need to keep json alive)
+    // or disabling json escaping
+
     std::string author;
     std::string body;
     std::string permalink;

@@ -48,6 +48,7 @@ public:
     static void print() {
         int64_t t = 0;
         for (const auto& pair : time) t += pair.second;
+        if (t == 0) t = 1;
 
         for (const auto& pair : time) {
             std::string out;

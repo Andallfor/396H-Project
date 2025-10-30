@@ -82,58 +82,63 @@ public:
 
     template <typename T>
     std::generator<const T&> decompress(int update_rate, bool exitOnErr = true) {
-        std::string buf; // chunks will have last entry cut off (without new line), so store and append to next
+        std::string buf = "";
+        size_t read, str_i, str_base;
+        glz::error_ctx err;
+        T data{};
+
+        ZSTD_inBuffer input = { in, read, 0 };
+        ZSTD_outBuffer output = { out, out_sz, 0 };
 
         // https://github.com/facebook/zstd/blob/dev/examples/streaming_decompression.c
-        while (size_t read = fread(in, 1, in_sz, handle)) {
+        while ((read = fread(in, 1, in_sz, handle))) {
             if (!read) break;
             p_read += read;
 
-            ZSTD_inBuffer input = { in, read, 0 };
+            input.pos = 0;
+            input.size = read;
             while (input.pos < input.size) {
 #ifdef BENCHMARK_ENABLED
                 auto t_decompress = Benchmark::timestamp();
 #endif
-                ZSTD_outBuffer output = { out, out_sz, 0 };
-
-                const size_t ret = ZSTD_decompressStream(dctx, &output, &input);
-                std::string str((const char*) out, output.size);
+                output.pos = 0;
+                ZSTD_decompressStream(dctx, &output, &input);
 #ifdef BENCHMARK_ENABLED
                 // note that this isnt the most accurate; we dont consider initial file reading or buffer allocation time
                 Benchmark::sum("Decompress", t_decompress);
 #endif
-                int n;
-                while ((n = str.find('\n')) != -1) {
-                    std::string entry = str.substr(0, n);
-                    str.erase(0, n + 1);
+                str_i = 0;
+                str_base = 0;
+                for (; str_i < output.size; str_i++) {
+                    if (out[str_i] == '\n') {
+#ifdef BENCHMARK_ENABLED
+                        auto t_json = Benchmark::timestamp();
+#endif
+                        if (str_base == 0 && buf.size() != 0) {
+                            if (str_i != 0) buf += std::string(out, str_i);
+                            err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, buf);
+                        } else {
+                            std::string_view str(out + str_base, str_i - str_base);
+                            err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, str);
+                        }
 
-                    if (buf.size() != 0) {
-                        entry = buf + entry;
-                        buf.clear();
+                        str_base = str_i + 1;
+#ifdef BENCHMARK_ENABLED
+                        Benchmark::sum("JSON", t_json);
+#endif
+                        if (p_lines++ % update_rate == 0) print();
+
+                        if (err) {
+                            std::string s = "(reader.hpp) Unable to read json! Glaze error code " + std::to_string((uint32_t) err.ec);
+                            if (exitOnErr) throw std::runtime_error(s);
+                            std::cout << s << std::endl;
+                            p_invalid_lines++;
+                        } else co_yield data;
                     }
-
-                    if (p_lines % update_rate == 0) print();
-                    p_lines++;
-#ifdef BENCHMARK_ENABLED
-                    auto t_json = Benchmark::timestamp();
-#endif
-                    T data{}; // look into caching this and only writing into the same object
-                    auto err = glz::read<glz::opts{
-                        .error_on_unknown_keys = false,
-                        .partial_read = true,
-                    }>(data, entry);
-#ifdef BENCHMARK_ENABLED
-                    Benchmark::sum("JSON", t_json);
-#endif
-                    if (err) {
-                        std::string s = "Unable to read line: " + std::to_string((uint32_t) err.ec);
-                        if (exitOnErr) throw std::runtime_error(s);
-                        std::cout << s << std::endl;
-                        p_invalid_lines++;
-                    } else co_yield data;
                 }
 
-                buf = str;
+                // chunks will have last entry cut off (without new line), so store and append to next
+                buf = std::string(out + str_base, output.size - str_base);
             }
         }
     }
@@ -150,8 +155,8 @@ public:
         std::string r;
         bFmt(p_read, r);
         ss << p_name << " -- (" << p_lines << "/" << p_invalid_lines << ": " << r << "/" << p_total_str << ") -- [";
-        ss << std::string((int) (percent * barLen), '=');
-        ss << std::string((int) (barLen - percent * barLen), ' ') << "] ";
+        ss << std::string((int) std::floor(percent * barLen), '=');
+        ss << std::string((int) std::ceil(barLen - percent * barLen), ' ') << "] ";
         ss << std::format("{:.2f}", 100.0 * percent) << "% -- ";
 
         std::string eta;
