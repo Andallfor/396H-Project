@@ -7,6 +7,15 @@
 #include "reader.hpp"
 #include "types.hpp"
 
+/*
+REMOVALTYPE is incorrect
+Can remove permalink - only need to store body
+some ids have the same prefix, can remove
+- linkid, subredditid
+
+remove archived? of 10m, only 732 where archived
+*/
+
 int main(int argc, const char** argv) {
 #ifdef _WIN32
     std::string p_data = "C:/Users/andallfor/Documents/GitHub/396H-Project/data/RC_2025-07.zst";
@@ -133,7 +142,7 @@ int main(int argc, const char** argv) {
     };
 
     Database db(p_db, p_backup, t, true);
-    db.read("comments", p_data, 5000000);
+    db.read("comments", p_data, 10000000);
 
     return 0;
 }

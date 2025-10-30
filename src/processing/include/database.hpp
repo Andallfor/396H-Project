@@ -119,7 +119,7 @@ public:
 
         if (clear) {
             SQLite::Transaction t(db);
-            db.exec("DROP TABLE IF EXISTS comments");
+            for (const auto& table : tables) db.exec("DROP TABLE IF EXISTS " + table.name);
             t.commit();
             db.exec("VACUUM");
         }
@@ -172,30 +172,44 @@ public:
 #ifdef BENCHMARK_ENABLED
             auto t_process = Benchmark::timestamp();
 #endif
-            for (e_i = 0; e_i < e_len; e_i++) {
-                table->def[e_i].callback(j, writeBuffer[ins_cnt]);
-                stmt.bindNoCopy(ins_cnt + 1, writeBuffer[ins_cnt]);
-                ins_cnt++;
-            }
-
+            for (e_i = 0; e_i < e_len; e_i++) table->def[e_i].callback(j, writeBuffer[ins_cnt++]);
             _count++;
-
-            if (_count % insBuf == 0) {
-                stmt.exec();
-                stmt.clearBindings();
-                stmt.reset();
-                ins_cnt = 0;
-            }
-
-            if (_count % writeBuf == 0) {
-                db.exec("END TRANSACTION");
-                db.exec("BEGIN TRANSACTION");
-            }
 #ifdef BENCHMARK_ENABLED
             Benchmark::sum("Process", t_process);
 #endif
+            if (_count % insBuf == 0) {
+#ifdef BENCHMARK_ENABLED
+                auto t_sql = Benchmark::timestamp();
+#endif
+                // write here instead of in above loop where we call all the callbacks so we can individually measure the performance of process v sql
+                for (e_i = 0; e_i < ins_cnt; e_i++) stmt.bindNoCopy(e_i + 1, writeBuffer[e_i]);
+
+                stmt.exec();
+                stmt.reset();
+                ins_cnt = 0;
+#ifdef BENCHMARK_ENABLED
+                Benchmark::sum("SQL", t_sql);
+#endif
+            }
+
+            if (_count % writeBuf == 0) {
+#ifdef BENCHMARK_ENABLED
+                auto t_sql = Benchmark::timestamp();
+#endif
+                db.exec("END TRANSACTION");
+                db.exec("BEGIN TRANSACTION");
+#ifdef BENCHMARK_ENABLED
+                Benchmark::sum("SQL", t_sql);
+#endif
+            }
 
             if (count != 0 && _count >= count) break;
+        }
+
+        if (ins_cnt != 0) {
+            stmt.clearBindings();
+            for (e_i = 0; e_i < ins_cnt; e_i++) stmt.bindNoCopy(e_i + 1, writeBuffer[e_i]);
+            stmt.exec();
         }
 
         db.exec("END TRANSACTION");

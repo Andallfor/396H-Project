@@ -91,6 +91,9 @@ public:
         ZSTD_outBuffer output = { out, out_sz, 0 };
 
         // https://github.com/facebook/zstd/blob/dev/examples/streaming_decompression.c
+#ifdef BENCHMARK_ENABLED
+        auto t_decompress = Benchmark::timestamp();
+#endif
         while ((read = fread(in, 1, in_sz, handle))) {
             if (!read) break;
             p_read += read;
@@ -98,13 +101,9 @@ public:
             input.pos = 0;
             input.size = read;
             while (input.pos < input.size) {
-#ifdef BENCHMARK_ENABLED
-                auto t_decompress = Benchmark::timestamp();
-#endif
                 output.pos = 0;
                 ZSTD_decompressStream(dctx, &output, &input);
 #ifdef BENCHMARK_ENABLED
-                // note that this isnt the most accurate; we dont consider initial file reading or buffer allocation time
                 Benchmark::sum("Decompress", t_decompress);
 #endif
                 str_i = 0;
@@ -136,7 +135,9 @@ public:
                         } else co_yield data;
                     }
                 }
-
+#ifdef BENCHMARK_ENABLED
+                t_decompress = Benchmark::timestamp();
+#endif
                 // chunks will have last entry cut off (without new line), so store and append to next
                 buf = std::string(out + str_base, output.size - str_base);
             }
