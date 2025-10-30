@@ -138,7 +138,7 @@ int main(int argc, const char** argv) {
 
                 out = 48 + (char) r;
             }}
-        }}
+        }},
     };
 
     Database db(p_db, p_backup, t, true);

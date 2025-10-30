@@ -11,9 +11,6 @@ else()
 endif()
 
 add_subdirectory(lib/sqlite3)
-add_subdirectory(lib/SQLiteCpp)
-
-add_dependencies(SQLiteCpp sqlite3)
 
 add_executable(main src/main.cpp)
 
@@ -28,4 +25,4 @@ else()
 endif()
 
 target_include_directories(main PUBLIC lib/glaze include)
-target_link_libraries(main PUBLIC SQLiteCpp sqlite3 zstd)
+target_link_libraries(main PUBLIC sqlite3 zstd)

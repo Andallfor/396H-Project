@@ -13,7 +13,7 @@
 #include <functional>
 #include <format>
 
-#include <SQLiteCpp.h>
+#include "sqlite3.h"
 
 #include "reader.hpp"
 #include "types.hpp"
@@ -93,15 +93,32 @@ public:
 class Database {
 private:
     const std::vector<Schema> tables;
-    SQLite::Database db;
+    sqlite3* db;
 
     Database(const Database&) = delete;
     Database& operator=(const Database&) = delete;
+
+    void tryThrowSql(int ret, const std::string& msg, char* customErr = nullptr) const {
+        if (ret != SQLITE_OK || customErr != nullptr) {
+            std::string out = std::format("{}\n  SQLite3 error code {}: {}", msg, ret, sqlite3_errstr(ret));
+            if (customErr != nullptr) {
+                out += "\n  " + std::string(customErr);
+                sqlite3_free(customErr);
+            }
+
+            throw std::runtime_error(out);
+        }
+    }
+
+    void exec(const std::string& cmd, const std::string& errMsg) const {
+        char* err = 0;
+        int ret = sqlite3_exec(db, cmd.c_str(), nullptr, nullptr, &err);
+        tryThrowSql(ret, errMsg, err);
+    }
+
+    void exec(const std::string& cmd) const { exec(cmd, "Could not run " + cmd); }
 public:
-    Database(const std::string& file, const std::string& backup, const std::vector<Schema>& tables, bool clear = false)
-    : tables(tables),
-      db(SQLite::Database(file, SQLite::OPEN_CREATE | SQLite::OPEN_READWRITE))
-    {
+    Database(const std::string& file, const std::string& backup, const std::vector<Schema>& tables, bool clear = false) : tables(tables) {
         fs::path fp = file;
         fs::path bp = backup;
         if (backup != "" && fs::exists(fp)) {
@@ -117,18 +134,23 @@ public:
         fs::path journal = file + "-journal";
         if (fs::exists(journal)) fs::remove(journal);
 
-        if (clear) {
-            SQLite::Transaction t(db);
-            for (const auto& table : tables) db.exec("DROP TABLE IF EXISTS " + table.name);
-            t.commit();
-            db.exec("VACUUM");
-        }
+        int ret = sqlite3_open_v2(file.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); 
+        tryThrowSql(ret, "Could not open database " + file);
 
-        SQLite::Transaction t(db);
+        exec("BEGIN TRANSACTION", "Unable to start transaction in database initialization");
         for (const auto& table : tables) {
-            db.exec(std::format("CREATE TABLE IF NOT EXISTS {} ({}) STRICT;", table.name, table.columns()));
+            if (clear) exec("DROP TABLE IF EXISTS " + table.name, "Could not drop " + table.name);
+            exec(std::format("CREATE TABLE IF NOT EXISTS {} ({}) STRICT;", table.name, table.columns()), "Unable to create table " + table.name);
         }
-        t.commit();
+        exec("END TRANSACTION", "Unable to end transaction in database initialization");
+
+        exec("PRAGMA page_size = 8192");
+        exec("VACUUM");
+    }
+
+    ~Database() {
+        int ret = sqlite3_close(db);
+        tryThrowSql(ret, "Could not close database (are there any unfinished statements?)");
     }
 
     void read(const std::string& _table, const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5) {
@@ -142,10 +164,7 @@ public:
             }
         }
 
-        if (table == nullptr) {
-            std::cerr << "Unknown table name " << _table << std::endl;
-            return;
-        }
+        if (table == nullptr) throw std::runtime_error("Unknown table name " + _table);
 
         if (count != 0) writeBuf = (int) std::min((size_t) writeBuf, count / 10);
 
@@ -157,17 +176,22 @@ public:
             if (j != insBuf - 1) sbind << ",";
         }
 
-        auto stmt = SQLite::Statement{db, std::format("INSERT INTO {} ({}) VALUES {}", table->name, table->columns_ins(), sbind.str())};
+        sqlite3_stmt* stmt;
+        std::string stmtStr = std::format("INSERT INTO {} ({}) VALUES {}", table->name, table->columns_ins(), sbind.str());
+        int ret = sqlite3_prepare_v3(db, stmtStr.c_str(), stmtStr.size() + 1, SQLITE_PREPARE_PERSISTENT, &stmt, nullptr);
+        tryThrowSql(ret, "Could not create prepared statement: " + stmtStr);
 
-        db.exec("BEGIN TRANSACTION");
-
-        int e_i = 0;
         int e_len = table->def.size();
-        int ins_off = 0;
-        int ins_cnt = 0;
+        int e_i = 0, ins_off = 0, ins_cnt = 0;
+        size_t _count = 0;
         std::vector<std::string> writeBuffer(insBuf * e_len, "");
 
-        size_t _count = 0;
+        const char* beginTrans = "BEGIN TRANSACTION";
+        const char* endTrans = "END TRANSACTION";
+
+        exec("BEGIN TRANSACTION");
+
+        // note that we dont use exec(...) below for performance
         for (const auto& j : reader.decompress<Comment>(writeBuf)) {
 #ifdef BENCHMARK_ENABLED
             auto t_process = Benchmark::timestamp();
@@ -182,10 +206,10 @@ public:
                 auto t_sql = Benchmark::timestamp();
 #endif
                 // write here instead of in above loop where we call all the callbacks so we can individually measure the performance of process v sql
-                for (e_i = 0; e_i < ins_cnt; e_i++) stmt.bindNoCopy(e_i + 1, writeBuffer[e_i]);
+                for (e_i = 0; e_i < ins_cnt; e_i++) sqlite3_bind_text(stmt, e_i + 1, writeBuffer[e_i].c_str(), writeBuffer[e_i].size(), SQLITE_STATIC);
 
-                stmt.exec();
-                stmt.reset();
+                if (sqlite3_step(stmt) != SQLITE_DONE) throw std::runtime_error("Could not step prepared statement: " + std::string(sqlite3_errmsg(db)));
+                sqlite3_reset(stmt);
                 ins_cnt = 0;
 #ifdef BENCHMARK_ENABLED
                 Benchmark::sum("SQL", t_sql);
@@ -196,8 +220,8 @@ public:
 #ifdef BENCHMARK_ENABLED
                 auto t_sql = Benchmark::timestamp();
 #endif
-                db.exec("END TRANSACTION");
-                db.exec("BEGIN TRANSACTION");
+                sqlite3_exec(db, endTrans, nullptr, nullptr, nullptr);
+                sqlite3_exec(db, beginTrans, nullptr, nullptr, nullptr);
 #ifdef BENCHMARK_ENABLED
                 Benchmark::sum("SQL", t_sql);
 #endif
@@ -207,16 +231,18 @@ public:
         }
 
         if (ins_cnt != 0) {
-            stmt.clearBindings();
-            for (e_i = 0; e_i < ins_cnt; e_i++) stmt.bindNoCopy(e_i + 1, writeBuffer[e_i]);
-            stmt.exec();
+            sqlite3_clear_bindings(stmt);
+            for (e_i = 0; e_i < ins_cnt; e_i++) sqlite3_bind_text(stmt, e_i + 1, writeBuffer[e_i].c_str(), writeBuffer[e_i].size(), SQLITE_STATIC);
+            sqlite3_step(stmt);
         }
 
-        db.exec("END TRANSACTION");
-        db.exec("PRAGMA optimize");
+        exec("END TRANSACTION");
+        exec("PRAGMA optimize");
+
+        ret = sqlite3_finalize(stmt);
+        tryThrowSql(ret, "Could not close prepared statement");
 
         reader.print_end();
     }
 };
-
 #endif

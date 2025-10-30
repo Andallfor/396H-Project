@@ -42,6 +42,15 @@ struct Comment {
     std::optional<std::string> collapsed_reason;
     std::optional<std::string> collapsed_reason_code;
     std::optional<std::string> distinguished;
+
+    // because we just write to the same struct we need to reset the optional ones
+    void reset() {
+        removal_reason.reset();
+        _meta.reset();
+        collapsed_reason.reset();
+        collapsed_reason_code.reset();
+        distinguished.reset();
+    }
 };
 
 // notice: we assume enums have < 10 elements

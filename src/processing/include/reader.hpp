@@ -113,6 +113,7 @@ public:
 #ifdef BENCHMARK_ENABLED
                         auto t_json = Benchmark::timestamp();
 #endif
+                        data.reset();
                         if (str_base == 0 && buf.size() != 0) {
                             if (str_i != 0) buf += std::string(out, str_i);
                             err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, buf);
