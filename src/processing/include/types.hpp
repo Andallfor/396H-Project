@@ -5,6 +5,14 @@
 #include <variant>
 #include <glaze/glaze.hpp>
 
+/*
+TODO: can remove some extraneous values from removal and collapsed
+see the json month definitions
+*/
+
+template <typename T>
+concept TRedditData = requires(T t) { t.reset(); };
+
 struct _CommentMeta {
     std::optional<bool> is_edited;
     std::optional<std::string> removal_type;
@@ -53,7 +61,46 @@ struct Comment {
     }
 };
 
+struct _SubmissionMeta {
+    std::optional<std::string> removal_type;
+};
+
+struct Submission {
+    std::string selftext;
+    std::string author;
+    std::string id;
+
+    int score;
+    int created_utc;
+
+    std::string subreddit;
+    std::string subreddit_id;
+    std::string subreddit_type;
+
+    std::string permalink;
+
+    std::optional<_SubmissionMeta> _meta;
+    std::optional<std::string> distinguished;
+
+    void reset() {
+        _meta.reset();
+        distinguished.reset();
+    }
+};
+
 // notice: we assume enums have < 10 elements
+
+enum RemovalSubmissionEnum {
+    RS_ERROR,
+    RS_NONE,
+    RS_DELETED,
+    RS_MOD,
+    RS_REDDIT,
+    RS_AUTOMOD,
+    RS_AUTHOR,
+    RS_TAKEDOWN, // content or copyright takedown
+    RS_OPS // community or "anti evil" ops
+};
 
 enum RemovalEnum {
     R_ERROR,
@@ -61,7 +108,7 @@ enum RemovalEnum {
     R_DELETED,
     R_REMOVED,
     R_REDDIT,
-    R_LEGAL
+    R_LEGAL,
 };
 
 enum CollapsedEnum {

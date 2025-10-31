@@ -117,6 +117,7 @@ public:
                         if (str_base == 0 && buf.size() != 0) {
                             if (str_i != 0) buf += std::string(out, str_i);
                             err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, buf);
+                            buf.clear();
                         } else {
                             std::string_view str(out + str_base, str_i - str_base);
                             err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, str);
@@ -133,6 +134,8 @@ public:
                             if (exitOnErr) throw std::runtime_error(s);
                             std::cout << s << std::endl;
                             p_invalid_lines++;
+                            // possible causes for error:
+                            // one entry is longer than an entire chunk
                         } else co_yield data;
                     }
                 }
@@ -140,7 +143,8 @@ public:
                 t_decompress = Benchmark::timestamp();
 #endif
                 // chunks will have last entry cut off (without new line), so store and append to next
-                buf = std::string(out + str_base, output.size - str_base);
+                // += because occasionally an entry will be so long that it spans multiple chunks
+                buf += std::string(out + str_base, output.size - str_base);
             }
         }
     }
