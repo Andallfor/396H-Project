@@ -3,121 +3,145 @@
 
 #include <optional>
 #include <variant>
-#include <glaze/glaze.hpp>
+#include <vector>
+#include "glaze/glaze.hpp"
+#include "ctre.hpp"
 
-/*
-TODO: can remove some extraneous values from removal and collapsed
-see the json month definitions
-*/
+// https://stackoverflow.com/questions/70857562/is-this-good-enough-to-check-an-ascii-string
+bool isAscii(const unsigned char& c) { return (c & 0x80) == 0; }
+
+// this is set in main.cpp
+bool s1_first[256] = {false};
+bool s1_second[256] = {false};
+bool s2_first[256];
+bool s2_second[256] = {false};
+
+// https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide
+// markdown link, raw link (http:// or https://), # (headers), ^ or >
+// note that we dont match for stuff like _ * since those cant be done with regex
+// though a brief search shows that only a small percentage of text has them (maybe like 7%?)
+auto markdown = ctre::search_all<"\\[(.*?)\\]\\(.*?\\)|https?:\\/\\/\\S*|(^|\\n)[#>]+ *|([^\\\\])\\^">;
 
 template <typename T>
-concept TRedditData = requires(T t) { t.reset(); };
-
-struct _CommentMeta {
-    std::optional<bool> is_edited;
-    std::optional<std::string> removal_type;
+concept TRedditData = requires(T t) {
+    // called before any processing
+    t.reset();
+    // called after processing, return determines if we write entry to database
+    { t.valid() } -> std::convertible_to<bool>;
 };
 
+struct _Replacement {
+    int pos; int len;
+    std::string str;
+};
+
+bool sanitize(std::string& body, int& num_sentences) {
+    if (body.size() == 0 || body == "[deleted]") return false;
+
+    // you can get much better performance with re2 or hyperscan but those are a bit of a nightmare to install
+
+    // filter by ascii and num sentences, which removes ~95% of text (so below regex doesnt need to be run on everything)
+    num_sentences = 0;
+    int len = body.size(); // we have i + 1 which will get \0
+    for (int i = 0; i < len; i++) {
+        unsigned char c = body[i];
+        unsigned char cc = body[i + 1];
+
+        if (!isAscii(c)) return false;
+
+        // ((\.|\?|!)\s)|(\S| )(\n|$)
+        // its not a perfect sentence matcher but generally close enough
+        if ((s1_first[c] && s1_second[cc]) || (s2_first[c] && s2_second[cc])) {
+            num_sentences++;
+            i++;
+            // before we skip we also need to make sure the skipped char is ascii
+            if (!isAscii(cc)) return false;
+        }
+    }
+
+    if (num_sentences < 5) return false;
+
+    // remove disruptive markdown
+    int offset = 0;
+    std::vector<_Replacement> toRemove;
+    for (auto match : markdown(body)) {
+        toRemove.push_back({
+            (int) (match.begin() - body.begin()),
+            (int) match.size(),
+            (match.get<1>().size()) ? match.get<1>().to_string() :
+            (match.get<2>().size()) ? match.get<2>().to_string() :
+            (match.get<3>().size()) ? match.get<3>().to_string() : "",
+        });
+    }
+
+    for (auto& r : toRemove) {
+        body.replace(r.pos - offset, r.len, r.str);
+        offset += r.len - r.str.size();
+    }
+
+    // remove backslash
+    // since erase is expensive and num_sentences filters out so much it might (maybe) be more efficient to separate the loops
+    // (its also easier)
+    for (auto it = body.begin(); it != body.end(); it++) {
+        if (*it == '\\') {
+            it = body.erase(it);
+            if (it == body.end()) break;
+        }
+    }
+
+    return true;
+}
+
 struct Comment {
-    std::optional<_CommentMeta> _meta;
-
-    // look into using string_view (will need to keep json alive)
-    // or disabling json escaping
-
-    std::string author;
     std::string body;
-    std::string permalink;
-
-    std::string id;
-    std::string link_id;
-    std::string parent_id;
-
     std::string subreddit;
-    std::string subreddit_id;
-    std::string subreddit_type;
-
-    bool archived;
+    std::string id;
+    std::string parent_id;
     int created_utc;
-    int controversiality;
     int score;
-    bool is_submitter;
-    bool locked;
-    bool stickied;
-
-    std::variant<bool, int> edited;
-    std::optional<std::string> removal_reason;
-    bool collapsed;
-    std::optional<std::string> collapsed_reason;
-    std::optional<std::string> collapsed_reason_code;
     std::optional<std::string> distinguished;
+    
+    std::string author;
+    int num_sentences;
 
     // because we just write to the same struct we need to reset the optional ones
-    void reset() {
-        removal_reason.reset();
-        _meta.reset();
-        collapsed_reason.reset();
-        collapsed_reason_code.reset();
-        distinguished.reset();
+    void reset() { distinguished.reset(); }
+
+    bool valid() {
+        if (author == "AutoModerator") return false;
+        return sanitize(body, num_sentences);
     }
 };
 
-struct _SubmissionMeta {
-    std::optional<std::string> removal_type;
+template <> struct glz::meta<Comment> {
+    static constexpr bool skip(const std::string_view key, const meta_context&) {
+        return key == "num_sentences";
+    }
 };
 
 struct Submission {
     std::string selftext;
-    std::string author;
-    std::string id;
-
-    int score;
-    int created_utc;
-
     std::string subreddit;
-    std::string subreddit_id;
-    std::string subreddit_type;
-
-    std::string permalink;
-
-    std::optional<_SubmissionMeta> _meta;
+    std::string id;
+    int created_utc;
+    int score;
     std::optional<std::string> distinguished;
 
-    void reset() {
-        _meta.reset();
-        distinguished.reset();
+    int num_sentences;
+
+    void reset() { distinguished.reset(); }
+
+    // do not need to remove automoderator from here
+    bool valid() { return sanitize(selftext, num_sentences); }
+};
+
+template <> struct glz::meta<Submission> {
+    static constexpr bool skip(const std::string_view key, const meta_context&) {
+        return key == "num_sentences";
     }
 };
 
 // notice: we assume enums have < 10 elements
-
-enum RemovalSubmissionEnum {
-    RS_ERROR,
-    RS_NONE,
-    RS_DELETED,
-    RS_MOD,
-    RS_REDDIT,
-    RS_AUTOMOD,
-    RS_AUTHOR,
-    RS_TAKEDOWN, // content or copyright takedown
-    RS_OPS // community or "anti evil" ops
-};
-
-enum RemovalEnum {
-    R_ERROR,
-    R_NONE,
-    R_DELETED,
-    R_REMOVED,
-    R_REDDIT,
-    R_LEGAL,
-};
-
-enum CollapsedEnum {
-    C_ERROR,
-    C_NONE,
-    C_SCORE,
-    C_DELETED,
-    C_UNKNOWN
-};
 
 enum DistinguishedEnum {
     D_ERROR,
@@ -126,12 +150,15 @@ enum DistinguishedEnum {
     D_ADMIN
 };
 
-enum SubredditEnum {
-    S_ERROR,
-    S_PUBLIC,
-    S_RESTRICTED,
-    S_USER,
-    S_ARCHIVED
-};
+void getDistinguished(const std::optional<std::string>& in, std::string& out) {
+    DistinguishedEnum d = D_ERROR;
+    if (in.has_value()) {
+        int ss = in->size();
+        if (ss == 9) d = D_MOD;
+        else if (ss == 5) d = D_ADMIN;
+    } else d = D_USER;
+
+    out = 48 + (char) d;
+}
 
 #endif

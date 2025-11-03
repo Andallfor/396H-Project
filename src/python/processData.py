@@ -1,14 +1,15 @@
 # IMPORTANT: expects working path to be root!
 
-INPUT = "data"
-PROCESSED = 'data/processed.txt'
-DATABASE = '_data/database.db'
-BACKUP = 'data/backup'
+INPUT = "../../data"
+PROCESSED = '../../data/processed.txt'
+DATABASE = '../../data/database.db'
+BACKUP = '../../data/backup'
 
 if __name__ == '__main__':
     from glob import glob
     import os
     from processing.database import Database
+    import time
 
     os.makedirs(os.path.dirname(PROCESSED), exist_ok = True)
     if not os.path.exists(PROCESSED):
@@ -34,7 +35,10 @@ if __name__ == '__main__':
         processedHandle = open(PROCESSED, 'a')
         db = Database(database = DATABASE, backupLoc = BACKUP, clear = True, writable = True, backup = False)
         for t in todo:
-            db.read(t, True, 5_000_000)
+            tt = time.time()
+            db.read(t, True, 1_000_000)
+            print()
+            print(1_000_000 / (time.time() - tt))
             processedHandle.write(t + '\n')
         
         processedHandle.close()

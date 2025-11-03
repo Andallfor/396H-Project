@@ -32,6 +32,7 @@ private:
     double p_total = 0; 
     size_t p_lines = 0;
     size_t p_invalid_lines = 0;
+    size_t p_filtered_lines = 0;
     size_t p_last_len = 0;
     double p_total_lines = 0;
     time_point p_start;
@@ -80,8 +81,8 @@ public:
         ZSTD_freeDCtx(dctx);
     }
 
-    template <typename T>
-    std::generator<const T&> decompress(int update_rate, bool exitOnErr = true) {
+    template <TRedditData T>
+    std::generator<const T&> decompress(const int update_rate, const size_t count, bool exitOnErr = true) {
         std::string buf = "";
         size_t read, str_i, str_base;
         glz::error_ctx err;
@@ -127,16 +128,19 @@ public:
 #ifdef BENCHMARK_ENABLED
                         Benchmark::sum("JSON", t_json);
 #endif
-                        if (p_lines++ % update_rate == 0) print();
 
                         if (err) {
                             std::string s = "(reader.hpp) Unable to read json! Glaze error code " + std::to_string((uint32_t) err.ec);
                             if (exitOnErr) throw std::runtime_error(s);
                             std::cout << s << std::endl;
                             p_invalid_lines++;
-                            // possible causes for error:
-                            // one entry is longer than an entire chunk
-                        } else co_yield data;
+                        } else {
+                            if (data.valid()) co_yield data;
+                            else p_filtered_lines++;
+                        }
+
+                        if (p_lines++ % update_rate == 0) print();
+                        if (count != 0 && p_lines >= count) goto end;
                     }
                 }
 #ifdef BENCHMARK_ENABLED
@@ -147,6 +151,7 @@ public:
                 buf += std::string(out + str_base, output.size - str_base);
             }
         }
+end:
     }
 
     void print() {
@@ -156,23 +161,23 @@ public:
         int index = 0;
 
         int barLen = 50;
-        std::stringstream ss;
 
         std::string r;
         bFmt(p_read, r);
-        ss << p_name << " -- (" << p_lines << "/" << p_invalid_lines << ": " << r << "/" << p_total_str << ") -- [";
-        ss << std::string((int) std::floor(percent * barLen), '=');
-        ss << std::string((int) std::ceil(barLen - percent * barLen), ' ') << "] ";
-        ss << std::format("{:.2f}", 100.0 * percent) << "% -- ";
 
         std::string eta;
         if (percent == 1) eta = "Done";
         else if (percent == 0) eta = "Unknown";
         else Benchmark::tFmt((1.0 / percent - 1.0) * (double) Benchmark::elapsed(p_start), eta);
 
-        ss << eta;
-
-        std::string s = ss.str();
+        std::string s = std::format("{} -- ({}/{}/{} = {}/{}) -- [{}{}] {:.2f}% -- {}",
+            p_name,
+            p_lines, p_filtered_lines, p_invalid_lines,
+            r, p_total_str,
+            std::string((int) std::floor(percent * barLen), '='), std::string((int) std::ceil(barLen - percent * barLen), ' '),
+            100.0 * percent,
+            eta
+        );
         std::cout << s;
 
         if (s.size() < p_last_len) std::cout << std::string(p_last_len - s.size(), ' ');
@@ -182,22 +187,13 @@ public:
     }
 
     void print_end() {
-        print();
-        std::cout << std::endl;
-        std::string s;
-
-        bFmt(p_read, s);
-        std::cout << "Size read: " << s << std::endl;
-
-        s.clear();
         double t = (double) Benchmark::elapsed(p_start);
-        Benchmark::tFmt(t, s);
-        std::cout << "Time elapsed: " << s << std::endl;
+        std::string size; bFmt(p_read, size);
+        std::string time; Benchmark::tFmt(t, time);
+        double l = (double) p_lines / t;
 
-        double l = (double) (p_lines - p_invalid_lines) / t;
-        std::cout << "Lines/s: " << l << std::endl;
-
-        std::cout << std::endl;
+        print();
+        std::cout << std::format("\nSize read: {}\nTime elapsed: {}\nLines/s: {}\n", size, time, l);
         Benchmark::print();
     }
 };

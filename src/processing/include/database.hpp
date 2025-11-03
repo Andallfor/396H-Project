@@ -119,8 +119,6 @@ private:
         int ret = sqlite3_exec(db, cmd.c_str(), nullptr, nullptr, &err);
         tryThrowSql(ret, errMsg, err);
     }
-
-    void exec(const std::string& cmd) const { exec(cmd, "Could not run " + cmd); }
 public:
     Database(const std::string& file, const std::string& backup, const Schema<T>& table, bool clear = false) : table(table) {
         fs::path fp = file;
@@ -151,11 +149,17 @@ public:
     }
 
     ~Database() {
+        if (!db) return;
         int ret = sqlite3_close(db);
         tryThrowSql(ret, "Could not close database (are there any unfinished statements?)");
+
+        db = nullptr;
     }
 
-    void read(const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5) {
+    void exec(const std::string& cmd) const { exec(cmd, "Could not run " + cmd); }
+
+    // return lines written to database
+    size_t read(const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5) {
         Reader reader(file, count);
 
         if (count != 0) writeBuf = (int) std::min((size_t) writeBuf, count / 10);
@@ -184,7 +188,7 @@ public:
         exec("BEGIN TRANSACTION");
 
         // note that we dont use exec(...) below for performance
-        for (const auto& j : reader.decompress<T>(writeBuf)) {
+        for (const auto& j : reader.decompress<T>(writeBuf, count)) {
 #ifdef BENCHMARK_ENABLED
             auto t_process = Benchmark::timestamp();
 #endif
@@ -218,8 +222,6 @@ public:
                 Benchmark::sum("SQL", t_sql);
 #endif
             }
-
-            if (count != 0 && _count >= count) break;
         }
 
         if (ins_cnt != 0) {
@@ -235,6 +237,8 @@ public:
         tryThrowSql(ret, "Could not close prepared statement");
 
         reader.print_end();
+
+        return _count;
     }
 };
 #endif
