@@ -17,6 +17,19 @@
 namespace fs = std::filesystem;
 using time_point = std::chrono::system_clock::time_point;
 
+struct Reader_Output {
+    size_t fileSize = 0;
+    std::string fileName = "";
+    size_t numDesiredLines = 0;
+    time_point startTime{};
+    std::string fileSizeStr = "";
+    
+    size_t readSize = 0;
+    size_t readLinesTotal = 0;
+    size_t readLinesInvalid = 0;
+    size_t readLinesFiltered = 0;
+};
+
 class Reader {
 private:
     FILE* handle;
@@ -28,19 +41,12 @@ private:
 
     ZSTD_DCtx* dctx;
 
-    size_t p_read = 0;
-    double p_total = 0; 
-    size_t p_lines = 0;
-    size_t p_invalid_lines = 0;
-    size_t p_filtered_lines = 0;
+    // use for printing progress bar
     size_t p_last_len = 0;
-    double p_total_lines = 0;
-    time_point p_start;
-    std::string p_total_str;
-    std::string p_name;
+
+    Reader_Output stats{};
 
     const std::string p_sizes[4] = {"B", "KiB", "MiB", "GiB"};
-
     void bFmt(const size_t bytes, std::string& out) const {
         int s = 0;
         double count = bytes;
@@ -50,7 +56,6 @@ private:
 public:
     Reader(const std::string& file, size_t numLines = 0) {
         handle = fopen(file.c_str(), "rb");
-
         if (!handle) {
             std::cerr << "Unknown file path " << file << std::endl;
             exit(1);
@@ -64,11 +69,11 @@ public:
 
         dctx = ZSTD_createDCtx();
 
-        p_total = (double) fs::file_size(file);
-        p_start = Benchmark::timestamp();
-        p_name = fs::path(file).filename().string();
-        p_total_lines = (double) numLines;
-        bFmt(p_total, p_total_str);
+        stats.fileSize = fs::file_size(file);
+        stats.startTime = Benchmark::timestamp();
+        stats.fileName = fs::path(file).filename().string();
+        stats.numDesiredLines = numLines;
+        bFmt(stats.fileSize, stats.fileSizeStr);
     }
 
     ~Reader() { close(); }
@@ -97,7 +102,7 @@ public:
 #endif
         while ((read = fread(in, 1, in_sz, handle))) {
             if (!read) break;
-            p_read += read;
+            stats.readSize += read;
 
             input.pos = 0;
             input.size = read;
@@ -118,10 +123,14 @@ public:
                         if (str_base == 0 && buf.size() != 0) {
                             if (str_i != 0) buf += std::string(out, str_i);
                             err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, buf);
+
+                            if (exitOnErr && err) std::cout << std::endl << "Buffer error:" << std::endl << buf << std::endl;
                             buf.clear();
                         } else {
                             std::string_view str(out + str_base, str_i - str_base);
                             err = glz::read<glz::opts{ .error_on_unknown_keys = false }>(data, str);
+
+                            if (exitOnErr && err) std::cout << std::endl << str << std::endl;
                         }
 
                         str_base = str_i + 1;
@@ -130,17 +139,16 @@ public:
 #endif
 
                         if (err) {
-                            std::string s = "(reader.hpp) Unable to read json! Glaze error code " + std::to_string((uint32_t) err.ec);
-                            if (exitOnErr) throw std::runtime_error(s);
-                            std::cout << s << std::endl;
-                            p_invalid_lines++;
+                            if (exitOnErr) throw std::runtime_error(
+                                std::format("(reader.hpp) Unable to read json! Glaze error code: {}", (uint32_t) err.ec));
+                            stats.readLinesInvalid++;
                         } else {
                             if (data.valid()) co_yield data;
-                            else p_filtered_lines++;
+                            else stats.readLinesFiltered++;
                         }
 
-                        if (p_lines++ % update_rate == 0) print();
-                        if (count != 0 && p_lines >= count) goto end;
+                        if (stats.readLinesTotal++ % update_rate == 0) print();
+                        if (count != 0 && stats.readLinesTotal >= count) goto end;
                     }
                 }
 #ifdef BENCHMARK_ENABLED
@@ -157,23 +165,25 @@ end:
     void print() {
         if (p_last_len != 0) std::cout << '\r';
 
-        double percent = (p_total_lines == 0) ? (double) p_read / p_total : (double) p_lines / p_total_lines;
+        double percent = (stats.numDesiredLines == 0)
+            ? (double) stats.readSize / (double) stats.fileSize
+            : (double) stats.readLinesTotal / (double) stats.numDesiredLines;
         int index = 0;
 
         int barLen = 50;
 
         std::string r;
-        bFmt(p_read, r);
+        bFmt(stats.readSize, r);
 
         std::string eta;
         if (percent == 1) eta = "Done";
         else if (percent == 0) eta = "Unknown";
-        else Benchmark::tFmt((1.0 / percent - 1.0) * (double) Benchmark::elapsed(p_start), eta);
+        else Benchmark::tFmt((1.0 / percent - 1.0) * (double) Benchmark::elapsed(stats.startTime), eta);
 
         std::string s = std::format("{} -- ({}/{}/{} = {}/{}) -- [{}{}] {:.2f}% -- {}",
-            p_name,
-            p_lines, p_filtered_lines, p_invalid_lines,
-            r, p_total_str,
+            stats.fileName,
+            stats.readLinesTotal, stats.readLinesFiltered, stats.readLinesInvalid,
+            r, stats.fileSizeStr,
             std::string((int) std::floor(percent * barLen), '='), std::string((int) std::ceil(barLen - percent * barLen), ' '),
             100.0 * percent,
             eta
@@ -187,15 +197,17 @@ end:
     }
 
     void print_end() {
-        double t = (double) Benchmark::elapsed(p_start);
-        std::string size; bFmt(p_read, size);
+        double t = (double) Benchmark::elapsed_ms(stats.startTime) / 1000.0;
+        std::string size; bFmt(stats.readSize, size);
         std::string time; Benchmark::tFmt(t, time);
-        double l = (double) p_lines / t;
+        double l = (double) stats.readLinesTotal / t;
 
         print();
-        std::cout << std::format("\nSize read: {}\nTime elapsed: {}\nLines/s: {}\n", size, time, l);
+        std::cout << std::format("\nSize read: {}\nTime elapsed: {}\nLines/s: {:.0f}\n", size, time, l);
         Benchmark::print();
     }
+
+    const Reader_Output& status() const { return stats; }
 };
 
 #endif

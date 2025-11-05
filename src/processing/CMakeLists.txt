@@ -24,5 +24,5 @@ else()
     set_target_properties(zstd PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/zstd/win/libzstd.dll.a")
 endif()
 
-target_include_directories(main PUBLIC lib/glaze lib/ctre include)
+target_include_directories(main PUBLIC lib/glaze lib/ctre include src/include)
 target_link_libraries(main PUBLIC sqlite3 zstd)

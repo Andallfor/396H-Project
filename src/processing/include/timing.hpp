@@ -30,8 +30,9 @@ public:
         }
     }
 
-    static time_point timestamp() { return floor<std::chrono::seconds>(std::chrono::system_clock::now()); }
+    static time_point timestamp() { return floor<std::chrono::milliseconds>(std::chrono::system_clock::now()); }
     static int64_t elapsed(const time_point& t) { return floor<std::chrono::seconds>(std::chrono::system_clock::now() - t).count(); }
+    static int64_t elapsed_ms(const time_point& t) { return floor<std::chrono::milliseconds>(std::chrono::system_clock::now() - t).count(); }
 
     static void sum(const std::string& key, int64_t t) {
         if (!time.count(key)) time[key] = t;

@@ -15,83 +15,18 @@
 
 #include "sqlite3.h"
 
-#include "reader.hpp"
 #include "types.hpp"
+#include "reader.hpp"
 #include "timing.hpp"
 
 namespace fs = std::filesystem;
 
 #define RAW_TEXT(FIELD) {#FIELD, ST_TEXT, [](const auto& json, std::string& out) { out = json.FIELD; }}
-#define INT(FIELD) {#FIELD, ST_INT, [](const auto& json, std::string& out) { out = std::to_string(json.FIELD); }}
+#define INT(FIELD) {#FIELD, ST_INT, [](const auto& json, std::string& out) { out = std::to_string((int) json.FIELD); }}
 #define BOOL(FIELD) {#FIELD, ST_BOOL, [](const auto& json, std::string& out) { out = ((char) json.FIELD) + 48; }}
-
-enum SchemaType { ST_TEXT, ST_INT, ST_BOOL };
-template <TRedditData T>
-using SchemaCallback = std::function<void(const T&, std::string&)>;
 
 // notice that all strings are encoded as utf8, so we dont need to do any conversions
 // https://github.com/ArthurHeitmann/arctic_shift/blob/bde0d2e8d41c0b6ade62ff79f69a77d633741482/file_content_explanations.md?plain=1#L12
-
-template <TRedditData T>
-struct SchemaDef {
-    const std::string key;
-    const SchemaType type;
-    const SchemaCallback<T> callback;
-
-    SchemaDef(const std::string& key, const SchemaType type, const SchemaCallback<T>& callback) : key(key), type(type), callback(callback) {}
-    SchemaDef(const SchemaDef& a) : key(a.key), type(a.type), callback(a.callback) {}
-    SchemaDef() = delete;
-};
-
-template <TRedditData T>
-struct Schema {
-private:
-    // cols is for table creating, head is for inserting
-    // will be in same order
-    std::string cols;
-    std::string head;
-
-    void init() {
-        std::stringstream _cols;
-        std::stringstream _head;
-
-        int i = 0;
-        int m = def.size() - 1;
-        for (const auto& s : def) {
-            switch (s.type) {
-                case ST_TEXT:
-                    _cols << s.key + " TEXT";
-                    break;
-                case ST_INT:
-                    _cols << s.key + " INTEGER";
-                    break;
-                case ST_BOOL:
-                    _cols << s.key + " INTEGER CHECK (" << s.key << " IN (0,1))";
-                    break;
-            }
-
-            _head << s.key;
-
-            if (i++ != m) {
-                _head << ",";
-                _cols << ",";
-            }
-        }
-
-        cols = _cols.str();
-        head = _head.str();
-    }
-public:
-    const std::string name;
-    const std::vector<SchemaDef<T>> def;
-
-    Schema(const std::string& table, const std::vector<SchemaDef<T>>& def) : name(table), def(def) { init(); }
-    Schema(const Schema& a) : name(a.name), def(a.def) { init(); }
-    Schema() = delete;
-
-    const std::string& columns() const { return cols; }
-    const std::string& columns_ins() const { return head; }
-};
 
 template <TRedditData T>
 class Database {
@@ -113,29 +48,8 @@ private:
             throw std::runtime_error(out);
         }
     }
-
-    void exec(const std::string& cmd, const std::string& errMsg) const {
-        char* err = 0;
-        int ret = sqlite3_exec(db, cmd.c_str(), nullptr, nullptr, &err);
-        tryThrowSql(ret, errMsg, err);
-    }
 public:
-    Database(const std::string& file, const std::string& backup, const Schema<T>& table, bool clear = false) : table(table) {
-        fs::path fp = file;
-        fs::path bp = backup;
-        if (backup != "" && fs::exists(fp)) {
-            if (bp.has_filename()) throw std::invalid_argument("Backup (" + backup + ") must be a directory.");
-            fs::create_directory(bp);
-
-            auto t = std::chrono::system_clock::now();
-            bp /= ("backup_" + std::format("{:%d_%m_%H-%M-%S}", floor<std::chrono::seconds>(t)) + ".db");
-            fs::copy_file(fp, bp);
-        }
-
-        // if previous run left a journal (writes that had not been committed) remove
-        fs::path journal = file + "-journal";
-        if (fs::exists(journal)) fs::remove(journal);
-
+    Database(const std::string& file, const Schema<T>& table, bool clear = false) : table(table) {
         int ret = sqlite3_open_v2(file.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); 
         tryThrowSql(ret, "Could not open database " + file);
 
@@ -157,9 +71,15 @@ public:
     }
 
     void exec(const std::string& cmd) const { exec(cmd, "Could not run " + cmd); }
+    void exec(const std::string& cmd, const std::string& errMsg) const {
+        char* err = 0;
+        int ret = sqlite3_exec(db, cmd.c_str(), nullptr, nullptr, &err);
+        tryThrowSql(ret, errMsg, err);
+    }
 
-    // return lines written to database
-    size_t read(const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5) {
+    const std::string& getSchema() const { return table.columns(); }
+
+    const Reader_Output read(const std::string& file, const size_t count = 0, int writeBuf = 50000, int insBuf = 5, bool exitOnErr = true) {
         Reader reader(file, count);
 
         if (count != 0) writeBuf = (int) std::min((size_t) writeBuf, count / 10);
@@ -188,7 +108,7 @@ public:
         exec("BEGIN TRANSACTION");
 
         // note that we dont use exec(...) below for performance
-        for (const auto& j : reader.decompress<T>(writeBuf, count)) {
+        for (const auto& j : reader.decompress<T>(writeBuf, count, exitOnErr)) {
 #ifdef BENCHMARK_ENABLED
             auto t_process = Benchmark::timestamp();
 #endif
@@ -238,7 +158,7 @@ public:
 
         reader.print_end();
 
-        return _count;
+        return reader.status();
     }
 };
 #endif
