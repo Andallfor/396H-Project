@@ -12,6 +12,8 @@ processed.txt
 log.txt
 .venv
 
+*.csv
+
 *.db
 src/processing/out
 *.exe
