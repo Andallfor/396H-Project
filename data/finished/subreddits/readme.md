@@ -28,3 +28,13 @@ TheNewRight_comments.zst: 144387/14259
 TheNewRight_submissions.zst: 38345/353
 unpopularopinion_comments.zst: 47520007/4334663
 unpopularopinion_submissions.zst: 2394909/291581
+Damnthatsinteresting_comments.zst: 25420691/960652
+Damnthatsinteresting_submissions.zst: 539717/43
+explainlikeimfive_comments.zst: 19186303/3620843
+explainlikeimfive_submissions.zst: 1942190/81167
+HobbyDrama_comments.zst: 722683/102905
+HobbyDrama_submissions.zst: 6442/1153
+MadeMeSmile_comments.zst: 17176977/595231
+MadeMeSmile_submissions.zst: 641440/3470
+aww_comments.zst: 40725246/1319943
+aww_submissions.zst: 6629040/5079

@@ -50,30 +50,49 @@ int main(int argc, const char** argv) {
     std::vector<std::string> subreddits = {
         // "AITAH",
         // "antiwork",
-        "changemyview",
-        "ChapoTrapHouse",
-        "Conservative",
-        "democrats",
-        "dsa",
-        "IAmA",
-        "KotakuInAction",
-        "MGTOW",
-        "offmychest",
-        "politics",
-        "The_Donald",
-        "TheNewRight",
-        "unpopularopinion"
+        // "changemyview",
+        // "ChapoTrapHouse",
+        // "Conservative",
+        // "democrats",
+        // "dsa",
+        // "IAmA",
+        // "KotakuInAction",
+        // "MGTOW",
+        // "offmychest",
+        // "politics",
+        // "The_Donald",
+        // "TheNewRight",
+        // "unpopularopinion",
+        "aww",
+        // "Damnthatsinteresting",
+        // "explainlikeimfive",
+        // "HobbyDrama",
+        // "MadeMeSmile",
     };
 
-    // auto r = resolveMonth("2025-07");
-    for (auto& subreddit : subreddits) {
-        auto r = resolveSubreddit(subreddit);
-        Wrapper wrapper(r.cmt, r.sub, r.db);
-        wrapper.read();
-        wrapper.sampleSubreddit();
+    std::vector<std::string> months = {
+        "2025-09",
+        "2025-08",
+        // "2025-07"
+    };
+
+    if (false) {
+        for (auto& month : months) {
+            auto r = resolveMonth(month);
+            Wrapper wrapper(r.cmt, r.sub, r.db);
+            wrapper.read();
+            wrapper.sampleUsers();
+        }
     }
 
-    // wrapper.sampleUsers();
+    if (true) {
+        for (auto& subreddit : subreddits) {
+            auto r = resolveSubreddit(subreddit);
+            Wrapper wrapper(r.cmt, r.sub, r.db);
+            wrapper.read();
+            wrapper.sampleSubreddit();
+        }
+    }
 
     return 0;
 }

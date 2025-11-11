@@ -119,6 +119,8 @@ public:
 #ifdef BENCHMARK_ENABLED
                         auto t_json = Benchmark::timestamp();
 #endif
+                        // TODO: bug -> if last line is empty (new line) we fail
+                        // happens in subreddit dumps
                         data.reset();
                         if (str_base == 0 && buf.size() != 0) {
                             if (str_i != 0) buf += std::string(out, str_i);
