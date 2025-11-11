@@ -1,7 +1,8 @@
-proposal/*
-!proposal/*.pdf
-!proposal/*.tex
-!proposal/*.sty
+papers/*/*
+!papers/*/*.pdf
+!papers/*/*.tex
+!papers/*/*.sty
+!papers/*/*.bib
 
 .vscode
 *.zst
