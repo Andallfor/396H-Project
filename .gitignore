@@ -13,6 +13,7 @@ log.txt
 .venv
 
 *.csv
+*.png
 
 *.db
 src/processing/out
