@@ -1,6 +1,5 @@
 import sqlite3
 import csv
-import os
 from pathlib import Path
 
 # convert .db to .csv since classifier script accepts .csv files
@@ -14,9 +13,11 @@ for db_path in DB_DIR.glob("*.db"):
     cur = conn.cursor()
 
     cur.execute("""
-        Select name 
-        From sqlite_master 
-        Where type='table' And name Not Like 'sqlite_%'
+        SELECT name
+        FROM sqlite_master
+        WHERE type='table'
+          AND name NOT LIKE 'sqlite_%'
+          AND name LIKE 'r_%'
     """)
     tables = [row[0] for row in cur.fetchall()]
 

@@ -142,8 +142,8 @@ final = pd.DataFrame(
 model = cl.ClassificationModel(
     "roberta",
     "mmochtak/authdetect",
-    args={"use_multiprocessing_for_evaluation": False},
-    use_cuda=False,
+    args={"use_multiprocessing_for_evaluation": False,"use_multiprocessing": False},
+    use_cuda=False
 )
 
 # Annotate the prepared trigrams with the authdetect model.
