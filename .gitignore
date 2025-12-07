@@ -1,8 +1,7 @@
-papers/*/*
-!papers/*/*.pdf
-!papers/*/*.tex
-!papers/*/*.sty
-!papers/*/*.bib
+papers/*
+!papers/*.tex
+!papers/*.sty
+!papers/*.bib
 
 .vscode
 *.zst

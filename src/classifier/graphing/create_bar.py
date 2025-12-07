@@ -6,7 +6,7 @@
 #
 # Bar graph example:
 # > python create_bar.py \
-#   --bar "r_politics: r_politics_per_text.csv" \
+#   --bar "r_politics: politics_r_subreddit_per_text.csv" \
 #   --bar "moderators: 2025-07_r_mods_per_text.csv, 2025-06_r_mods_per_text.csv"
 #
 # Histogram example:
@@ -14,10 +14,16 @@
 #   --graph hist \
 #   --bar "moderators: 2025-07_r_mods_per_text.csv, 2025-06_r_mods_per_text.csv"
 #
+# Violin plot example:
+# > python create_bar.py \
+#   --graph violin \
+#   --bar "r_politics: politics_r_subreddit_per_text.csv" \
+#   --bar "mods: 2025-06_r_mods_per_text.csv, 2025-07_r_mods_per_text.csv"
+#
 # Line graph example:
 # > python create_bar.py \
 #   --graph line \
-#   --bar "r_politics: r_politics_per_text.csv" \
+#   --bar "r_politics: politics_r_subreddit_per_text.csv" \
 #   --bar "moderators: 2025-07_r_mods_per_text.csv, 2025-06_r_mods_per_text.csv"
 #
 # Scatter plot example:
@@ -86,7 +92,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument(
     "--graph",
     default="bar",
-    choices=["bar", "hist", "line", "scatter"],
+    choices=["bar", "hist", "line", "scatter", "violin"],
     help="graph type (default: bar)",
 )
 ap.add_argument(
@@ -184,6 +190,80 @@ if args.graph == "hist":
     label_safe = label.replace(" ", "_")
     out_name = f"{args.graph}_{dist_tag}{args.value_col}_{label_safe}.png"
 
+# violin plot of distributions
+elif args.graph == "violin":
+    data = []
+    labels = []
+
+    # one violin per label, with each label allowing multiple CSVs
+    for label, files in bar_specs:
+        s = read_concat_series(finished_dir, files, args.value_col, args.dist).dropna()
+        data.append(s.to_numpy())
+        labels.append(label)
+
+    positions = list(range(1, len(data) + 1))
+
+    fig, ax = plt.subplots()
+
+    # Violin: distribution only (no mean/median/extrema lines)
+    vp = ax.violinplot(
+        data,
+        positions=positions,
+        showmeans=False,
+        showmedians=False,
+        showextrema=False,
+    )
+
+    # Make violins a bit less "bare" visually
+    for body in vp["bodies"]:
+        body.set_alpha(0.35)
+
+    # boxplot inside of the violin, change settings as needed
+    bp = ax.boxplot(
+        data,
+        positions=positions,
+        widths=0.12,
+        patch_artist=False,
+        showmeans=True,
+        meanline=False,
+        showfliers=True,
+
+        # turn alpha level of the box plot down
+        boxprops=dict(linewidth=1.0, alpha=0.5),
+        whiskerprops=dict(linewidth=1.0, alpha=0.5),
+        capprops=dict(linewidth=1.0, alpha=0.5),
+        medianprops=dict(color="black", linewidth=1.4, alpha=0.5),
+        
+        meanprops=dict(
+            marker="o",
+            markersize=3,
+            alpha=0.5,
+            markerfacecolor="black",
+            markeredgecolor="black",
+            markeredgewidth=0.6,
+        ),
+
+        # outliers are just small black dots
+        flierprops=dict(
+            marker=".",
+            markersize=2.2,
+            alpha=0.25,
+            markerfacecolor="black",
+            markeredgecolor="black",
+        )
+    )
+
+    # configure axes/labels/title/etc.
+    ax.set_ylabel(args.value_col)
+    ax.set_xlabel("Group")
+    ax.set_title(f"Violin plot of {args.value_col} across groups")
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels, rotation=45, ha="right")
+    ax.set_ylim(0.0, 1.0)
+
+    labels_safe = [label.replace(" ", "_") for label in labels]
+    out_name = f"{args.graph}_{dist_tag}{args.value_col}_" + "_".join(labels_safe) + ".png"
+
 
 # line graph for mean auth over time
 elif args.graph == "line":
@@ -192,6 +272,9 @@ elif args.graph == "line":
     # we use equal-width buckets, so change this as needed for more/less precise graphs,
     # similarly to bins for the histogram.
     BUCKETS = 50
+
+    # only show shaded spread region if there's only one line, otherwise it gets cluttered
+    show_spread = (len(bar_specs) == 1)
 
     # create the matplotlib figure/axes for plotting
     fig, ax = plt.subplots()
@@ -216,13 +299,22 @@ elif args.graph == "line":
         idx = ((t - t_min) * BUCKETS // den).astype("int64")
         idx = idx.clip(lower=0, upper=BUCKETS - 1)
 
-        # compute mean times and auth scores for each bucket
+        # compute mean times and value stats for each bucket
         t_mean = t.groupby(idx).mean()
-        v_mean = v.groupby(idx).mean()
+        g = v.groupby(idx)
+        v_mean = g.mean()
+        v_std = g.std().fillna(0.0)
 
         # convert unix seconds to actual dates/times
         x_dt = pd.to_datetime(t_mean.values, unit="s", utc=True)
+
         ax.plot(x_dt, v_mean.values, label=label)
+
+        # add shaded in spread regions if only one line
+        if show_spread:
+            lo = (v_mean - v_std).to_numpy()
+            hi = (v_mean + v_std).to_numpy()
+            ax.fill_between(x_dt, lo, hi, alpha=0.2)
 
         # update global min and max times
         cur_min = x_dt.min()
@@ -337,13 +429,15 @@ elif args.graph == "scatter":
 else:
     labels = []
     values = []
+    errs = []
+
+    use_err = (args.value_col == "auth" and args.agg == "mean")
 
     # one bar per label, with each label allowing multiple CSVs
     for label, files in bar_specs:
-        # combine all files for this label into one series before aggregating
-        series = read_concat_series(finished_dir, files, args.value_col, args.dist)
+        series = read_concat_series(finished_dir, files, args.value_col, args.dist).dropna()
 
-        # aggregate series into a single value for the bar height
+        # bar height
         if args.agg == "mean":
             val = series.mean()
         elif args.agg == "median":
@@ -354,9 +448,16 @@ else:
         labels.append(label)
         values.append(val)
 
+        # spread = std dev of sampled auth values
+        if use_err:
+            errs.append(series.std(ddof=1))
+
     # making the bar chart
     fig, ax = plt.subplots()
-    ax.bar(labels, values)
+    if use_err:
+        ax.bar(labels, values, yerr=errs, capsize=3)
+    else:
+        ax.bar(labels, values)
     ax.set_ylabel(f"{args.agg} of {args.value_col}")            # y-axis name, edit as needed
     ax.set_xlabel("Group")                                      # x-axis name, edit as needed
     ax.set_title(f"{args.agg} {args.value_col} across groups")  # graph title, edit as needed
