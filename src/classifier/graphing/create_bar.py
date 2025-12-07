@@ -314,7 +314,7 @@ elif args.graph == "line":
         if show_spread:
             lo = (v_mean - v_std).to_numpy()
             hi = (v_mean + v_std).to_numpy()
-            ax.fill_between(x_dt, lo, hi, alpha=0.2)
+            ax.fill_between(x_dt, lo, hi, alpha=0.25)
 
         # update global min and max times
         cur_min = x_dt.min()
@@ -455,7 +455,13 @@ else:
     # making the bar chart
     fig, ax = plt.subplots()
     if use_err:
-        ax.bar(labels, values, yerr=errs, capsize=3)
+        ax.bar(
+            labels,
+            values,
+            yerr=errs,
+            capsize=3,
+            error_kw=dict(alpha=0.5, linewidth=1.0),
+        )
     else:
         ax.bar(labels, values)
     ax.set_ylabel(f"{args.agg} of {args.value_col}")            # y-axis name, edit as needed
