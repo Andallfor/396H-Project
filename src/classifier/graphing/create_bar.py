@@ -38,6 +38,7 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 
 
 # each spec is 'label:csv1,csv2,...'
@@ -273,8 +274,8 @@ elif args.graph == "line":
     # similarly to bins for the histogram.
     BUCKETS = 50
 
-    # only show shaded spread region if there's only one line, otherwise it gets cluttered
-    show_spread = (len(bar_specs) == 1)
+    # only show shaded spread region if there's two or less lines, otherwise it gets cluttered
+    show_spread = (len(bar_specs) <= 2)
 
     # create the matplotlib figure/axes for plotting
     fig, ax = plt.subplots()
@@ -384,13 +385,28 @@ elif args.graph == "scatter":
     x = x_raw.rank(method="first", pct=True).to_numpy()  # in [0,1]
 
     # s = dot size, alpha = dot opacity, change as needed
-    ax.scatter(x, y, s=4, alpha=0.5)
+    ax.scatter(x, y, s=2, alpha=0.2, linewidths=0)
+
+    # regression line
+    m, b = np.polyfit(x, y, 1)
+
+    x_grid = np.linspace(0.0, 1.0, 300)
+    y_fit = m * x_grid + b
+
+    # show spread
+    resid = y - (m * x + b)
+    sigma = np.std(resid, ddof=1)
+
+    lo = np.clip(y_fit - sigma, 0.0, 1.0)
+    hi = np.clip(y_fit + sigma, 0.0, 1.0)
+    ax.plot(x_grid, y_fit, linewidth=2.0)
+    ax.fill_between(x_grid, lo, hi, alpha=0.15)
 
     # configure axes/labels/title/etc.
     x_name = args.x_col
     y_name = args.value_col
 
-    ax.set_xlabel(f"{x_name} percentile rank")
+    ax.set_xlabel(f"{x_name} percentile (raw value)")
     ax.set_ylabel(y_name)
     ax.set_title(f"{y_name} vs {x_name} ({label})")
     ax.set_xlim(0.0, 1.0)
@@ -406,19 +422,14 @@ elif args.graph == "scatter":
 
     qvals = x_raw.quantile(ticks).to_numpy()
 
-    # get rid of duplicate tick labels, keeping the leftmost occurrence
-    uniq_ticks = []
-    uniq_labels = []
-    seen = set()
+    # create labels for the ticks
+    labels = []
     for t, q in zip(ticks, qvals):
-        label_str = f"{q:g}"
-        if label_str not in seen:
-            seen.add(label_str)
-            uniq_ticks.append(t)
-            uniq_labels.append(label_str)
+        p = int(round(t * 100))
+        labels.append(f"{p}% ({q:g})")
 
-    ax.set_xticks(uniq_ticks)
-    ax.set_xticklabels(uniq_labels, rotation=45, ha="center", fontsize=9)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
 
     # output filename: scatter_[<dist>_]<x-col>_<value-col>_<label>.png
     label_safe = label.replace(" ", "_")
