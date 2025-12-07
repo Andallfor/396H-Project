@@ -390,15 +390,33 @@ elif args.graph == "scatter":
     # regression line
     m, b = np.polyfit(x, y, 1)
 
+    # show spread
+    resid = y - (m * x + b)
+
+    BUCKETS = 50  # change as needed
+
+    # bucket index for each point in x \in [0,1]
+    idx = (x * BUCKETS).astype(int)
+    idx = np.clip(idx, 0, BUCKETS - 1)
+
+    # get std of residuals per bucket
+    sigma_by = (
+        pd.Series(resid).groupby(idx).std(ddof=1)
+        .reindex(range(BUCKETS))
+        .to_numpy()
+    )
+
+    # apply the calculated stds to the plot
     x_grid = np.linspace(0.0, 1.0, 300)
     y_fit = m * x_grid + b
 
-    # show spread
-    resid = y - (m * x + b)
-    sigma = np.std(resid, ddof=1)
+    idx_grid = (x_grid * BUCKETS).astype(int)
+    idx_grid = np.clip(idx_grid, 0, BUCKETS - 1)
+    sigma_grid = sigma_by[idx_grid]
 
-    lo = np.clip(y_fit - sigma, 0.0, 1.0)
-    hi = np.clip(y_fit + sigma, 0.0, 1.0)
+    lo = np.clip(y_fit - sigma_grid, 0.0, 1.0)
+    hi = np.clip(y_fit + sigma_grid, 0.0, 1.0)
+
     ax.plot(x_grid, y_fit, linewidth=2.0)
     ax.fill_between(x_grid, lo, hi, alpha=0.15)
 
