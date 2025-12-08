@@ -39,7 +39,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-
+import math
 
 # each spec is 'label:csv1,csv2,...'
 # returns list of (label, [csv1, csv2, ...])
@@ -328,7 +328,13 @@ elif args.graph == "line":
     ax.set_ylabel(f"mean of {args.value_col}")
     ax.set_title(f"mean {args.value_col} over time")
     ax.set_ylim(0.0, 1.0)
-    ax.legend()
+
+    handles, labels = ax.get_legend_handles_labels()
+
+    max_rows = 8 # max rows of the legend for large line graphs, change as needed
+    ncol = max(1, math.ceil(len(labels) / max_rows))
+
+    ax.legend(handles, labels, ncol=ncol, fontsize=8)
 
     # choose readable date ticks based on the full plotted time span
     if global_min is not None and global_max is not None:
