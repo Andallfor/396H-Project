@@ -40,53 +40,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import math
-
-# each spec is 'label:csv1,csv2,...'
-# returns list of (label, [csv1, csv2, ...])
-def parse_bar_specs(bar_specs):
-    parsed = []
-    for spec in bar_specs:
-        label, files_str = spec.split(":", 1)
-        files = [f.strip() for f in files_str.split(",") if f.strip()]
-        parsed.append((label.strip(), files))
-    return parsed
-
-DIST_COL = "distinguished"
-
-def read_concat_df(base_dir, files, usecols, dist="all"):
-    # only read distinguished when needed
-    if dist != "all" and DIST_COL not in usecols:
-        usecols = list(usecols) + [DIST_COL]
-
-    df_list = []
-    for fname in files:
-        path = base_dir / fname
-        df_list.append(pd.read_csv(path, usecols=usecols))
-
-    df = pd.concat(df_list, ignore_index=True)
-
-    # simply return if we don't need to filter for distinguished
-    if dist == "all":
-        return df
-
-    d = pd.to_numeric(df[DIST_COL], errors="coerce")
-    if dist == "users":
-        return df.loc[d == 1]
-    else:  # elevated_users
-        return df.loc[d > 1]
-
-def read_concat_series(base_dir, files, col, dist="all"):
-    if dist == "all":
-        series_list = []
-        for fname in files:
-            path = base_dir / fname
-            series_list.append(pd.read_csv(path, usecols=[col])[col])
-        return pd.concat(series_list, ignore_index=True)
-    
-    # read df (col + distinguished), filter, then take the column
-    else:
-        df = read_concat_df(base_dir, files, [col], dist=dist)
-        return df[col]
+from util import parse_bar_specs, read_concat_df, read_concat_series, getOrDefault
 
 # command line arg handling
 ap = argparse.ArgumentParser()
@@ -136,7 +90,14 @@ ap.add_argument(
     choices=["all", "users", "elevated_users"],
     help="filter by distinguished column (default: all)",
 )
+ap.add_argument("--title", type=str, default="")
+ap.add_argument("--y-name", type=str, default="")
+ap.add_argument("--y-size", type=float, default=8)
+ap.add_argument("--x-size", type=float, default=8)
 args = ap.parse_args()
+
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["font.serif"] = ["Times New Roman"]
 
 # get current directory and the csv directory, all CSVs should be in ../csvs/finished
 script_dir = Path(__file__).resolve().parent
@@ -145,6 +106,17 @@ finished_dir = script_dir.parent / "csvs" / "finished"
 bar_specs = parse_bar_specs(args.bar)
 
 dist_tag = "" if args.dist == "all" else f"{args.dist}_"
+
+fig, ax = plt.subplots()
+fig.set_size_inches(args.x_size, args.y_size)
+ax.set_ylabel(getOrDefault(args.y_name, args.value_col))
+ax.set_title(getOrDefault(args.title, ""))
+
+locator = mdates.AutoDateLocator()
+locator.intervald[mdates.MONTHLY] = [1]
+formatter = mdates.ConciseDateFormatter(locator)
+ax.xaxis.set_major_locator(locator)
+ax.xaxis.set_major_formatter(formatter)
 
 # histogram only accepts one label with multiple CSVs allowed
 if args.graph == "hist":
@@ -158,9 +130,6 @@ if args.graph == "hist":
     series = read_concat_series(finished_dir, files, args.value_col, args.dist)
     series = series.dropna()
     n = len(series)
-
-    # create the matplotlib figure/axes for plotting
-    fig, ax = plt.subplots()
 
     # number of bins we use, change as needed for more/less detail.
     # depending on what it's changed to you might need to change the ylim as well.
@@ -203,8 +172,6 @@ elif args.graph == "violin":
         labels.append(label)
 
     positions = list(range(1, len(data) + 1))
-
-    fig, ax = plt.subplots()
 
     # Violin: distribution only (no mean/median/extrema lines)
     vp = ax.violinplot(
@@ -255,16 +222,13 @@ elif args.graph == "violin":
     )
 
     # configure axes/labels/title/etc.
-    ax.set_ylabel(args.value_col)
-    ax.set_xlabel("Group")
-    ax.set_title(f"Violin plot of {args.value_col} across groups")
     ax.set_xticks(positions)
     ax.set_xticklabels(labels, rotation=45, ha="right")
     ax.set_ylim(0.0, 1.0)
 
     labels_safe = [label.replace(" ", "_") for label in labels]
-    out_name = f"{args.graph}_{dist_tag}{args.value_col}_" + "_".join(labels_safe) + ".png"
-
+    # out_name = f"{args.graph}_{dist_tag}{args.value_col}_" + "_".join(labels_safe) + ".png"
+    out_name = f"violin.png"
 
 # line graph for mean auth over time
 elif args.graph == "line":
@@ -277,9 +241,6 @@ elif args.graph == "line":
     # only show shaded spread region if there's two or less lines, otherwise it gets cluttered
     show_spread = (len(bar_specs) <= 2)
 
-    # create the matplotlib figure/axes for plotting
-    fig, ax = plt.subplots()
-    
     # keep track of global min and max times
     global_min = None
     global_max = None
@@ -325,19 +286,18 @@ elif args.graph == "line":
 
 
     # configure axes/labels/title/etc.
-    ax.set_ylabel(f"mean of {args.value_col}")
-    ax.set_title(f"mean {args.value_col} over time")
     ax.set_ylim(0.0, 1.0)
+    ax.margins(0.025, 0)
 
     handles, labels = ax.get_legend_handles_labels()
 
     max_rows = 8 # max rows of the legend for large line graphs, change as needed
     ncol = max(1, math.ceil(len(labels) / max_rows))
 
-    ax.legend(handles, labels, ncol=ncol, fontsize=8)
+    ax.legend(handles, labels, ncol=ncol, fontsize=10)
 
     # choose readable date ticks based on the full plotted time span
-    if global_min is not None and global_max is not None:
+    """ if global_min is not None and global_max is not None:
         span_days = (global_max - global_min).days
 
         if span_days <= 60:
@@ -357,10 +317,11 @@ elif args.graph == "line":
             ax.set_xlabel(f"Time (UTC) for {global_min.year}")
         else:
             ax.set_xlabel(f"Time (UTC) for {global_min.year} to {global_max.year}")
-
+    """
     # output filename: line_[<dist>_]<value-col>_<label1>_<label2>_...png
     labels_safe = [label.replace(" ", "_") for label, _ in bar_specs]
-    out_name = f"{args.graph}_{dist_tag}{args.value_col}_" + "_".join(labels_safe) + ".png"
+    # out_name = f"{args.graph}_{dist_tag}{args.value_col}_" + "_".join(labels_safe) + ".png"
+    out_name = "line.png"
 
 # scatter plot of auth vs (score or num_sentences)
 elif args.graph == "scatter":
@@ -370,9 +331,6 @@ elif args.graph == "scatter":
         raise ValueError("--x-col is required when --graph scatter")
     elif len(bar_specs) != 1:
         raise ValueError("scatter plot expects exactly one --bar")
-
-    # create the matplotlib figure/axes for plotting
-    fig, ax = plt.subplots()
 
     label, files = bar_specs[0]
 
@@ -459,7 +417,6 @@ elif args.graph == "scatter":
     label_safe = label.replace(" ", "_")
     out_name = f"{args.graph}_{dist_tag}{x_name}_{args.value_col}_{label_safe}.png"
 
-
 # bar chart
 else:
     labels = []
@@ -509,7 +466,6 @@ else:
     # output filename: bar_[<dist>_]<agg>_<value-col>_<label1>_<label2>_...png
     labels_safe = [label.replace(" ", "_") for label in labels]
     out_name = f"{args.graph}_{dist_tag}{args.agg}_{args.value_col}_" + "_".join(labels_safe) + ".png"
-
 
 # save the figure to a PNG in the same folder as this script
 out_path = script_dir / out_name

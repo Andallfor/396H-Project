@@ -36,7 +36,7 @@ Specifically, we analyze the difference in language used between users and moder
 \begin{itemize}
     \setlength\itemsep{0pt}
     \item Distribution of authoritarian score,
-    \item Mean and variance \hl{\it is this what the line plots are measuring?} of authoritarian score over time,
+    \item Mean and standard deviation of authoritarian score over time,
     \item Mean authoritarian score per sentence in a given comment/submission,
     \item Mean authoritarian score with respect to a comment's/submission's score.
 \end{itemize}
@@ -54,7 +54,7 @@ Specifically, we analyze the difference in language used between users and moder
 
 The data processing pipeline is described in \autoref{tab:pipeline}. Submission and comment data was derived from the Pushshift dumps~\cite{dump,subredditsDump,dump07,dump08,dump09}, then filtered and organized into an SQLite database. The classification step extracts the relevant entries (a submission or comment) from the database as a CSV file, which is then feed into the classifier. This returns an authoritarian score for both the entire entry as well as per sentence.
 
-Submissions are treated as top-level comments, and thus are not differentiated in the classification step and differ only slightly in their respective filtering rules during the ingestion step. In total, 351,380 entries were ingested and classified, 130,000 for the users category and 221,380 for the subreddits category.
+Submissions are treated as top-level comments, and thus are not differentiated in the classification step and differ only slightly in their respective filtering rules during the ingestion step. In total, 351,368 entries were ingested and classified, 129,988 for the users category and 221,380 for the subreddits category.
 
 \subsection{Ingestion}
 Due to compute and storage limitations, an aggressive filter was applied to reduce the size of the input data. The applied rules were:
@@ -77,30 +77,40 @@ The only difference between the submission and comment filter was that comments 
 
 \subsubsection{Users}
 
-The submission and comment data for the user category was sourced from the Pushshift monthly dumps~\cite{dump,dump07,dump08,dump09} for the 13 month period from 09/2024 to 09/2025. Each month has 355 million entries on average, with the entire dataset consisting of 4.6 billion entries. This was filtered down to 244 million points. For each month, 10,000 entries were randomly sampled, 5,000 from non-moderator users and 5,000 moderators. In total, this section of the analysis consists of 130,00 entries evenly distributed across a year, with 65,000 moderator entries and 65,000 non-moderator entries. \autoref{tab:monthly} describes the collected months.
+The submission and comment data for the user category was sourced from the Pushshift monthly dumps~\cite{dump,dump07,dump08,dump09} for the 13 month period from 09/2024 to 09/2025. Each month has 355 million entries on average, with the entire dataset consisting of 4.6 billion entries. This was filtered down to 244 million points. For each month, 10,000 entries were randomly sampled, 5,000 from non-moderator users and 5,000 moderators. In total, this section of the analysis consists of 129,988 entries (12 entries were dropped due to failing to be classified) evenly distributed across a year, with 65,000 moderator entries and 65,000 non-moderator entries. \autoref{tab:monthly} describes the collected months.
 
 \subsubsection{Subreddits}
 
-The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base (\autoref{tab:subredditsSelected}). For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:subreddits} describes the collected subreddits.
-
-\begin{table*}
-    \centering
-    \begin{tabular}{|l|l|l|l|}
-        \hline
-        Drama & Political & Controversial & Control \\ \hline
-        r/iama & r/politics & r/the\_donald & r/mademesmile \\ \hline
-        r/aitah & r/conservative & r/chapotraphouse & r/explainlikeimfive \\ \hline
-        r/offmychest & r/democrats & r/mgtow & r/aww \\ \hline
-        r/changemyview & r/thenewright & r/antiwork & r/damnthatsinteresting \\ \hline
-        r/unpopularopinion & r/dsa & r/kotakuinaction & r/hobbydrama \\ \hline
-    \end{tabular}
-    \caption{The selected subreddits for analysis.}
-    \label{tab:subredditsSelected}
-\end{table*}
+The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base. For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:subreddits} describes the collected subreddits.
 
 \subsection{Classification}
 
 \section{Results}
+
+\hl{\it Should include specific messages as examples here!}
+
+\subsection{Users}
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{users.png}
+    \caption{Left: The mean and one standard deviation (shaded) of the moderator and user posts from 09/2024 to 09/2025. Right: The total distribution of authoritarian score for moderator and user posts. (N=129,988)}
+    \label{tab:users}
+\end{figure*}
+
+\subsection{Subreddits}
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{violin.png}
+    \caption{The distribution of authoritarian scores across selected subreddits. Subreddits are organized by group: (in order) control, drama, politics, and controversial. (N=221,380)}
+    \label{tab:subreddits}
+\end{figure*}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{sub_time.png}
+    \caption{The mean authoritarian score of r/TheNewRight, r/The\_Donald, and r/ChapoTrapHouse prior to their ban from Reddit, covering the period from 04/2019 to 04/2020. (N=28,160)}
+    \label{tab:subreddits_time}
+\end{figure}
 
 \section{Conclusion}
 
