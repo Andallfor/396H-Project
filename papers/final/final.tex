@@ -42,7 +42,7 @@ Specifically, we analyze the difference in language used between users and moder
 \end{itemize}
 
 \section{Related Work}
-\hl{\it TODO}
+\hl{\it TODO - should include how the classifier works here}
 
 \section{Methodology}
 \begin{figure*}
@@ -54,7 +54,7 @@ Specifically, we analyze the difference in language used between users and moder
 
 The data processing pipeline is described in \autoref{tab:pipeline}. Submission and comment data was derived from the Pushshift dumps~\cite{dump,subredditsDump,dump07,dump08,dump09}, then filtered and organized into an SQLite database. The classification step extracts the relevant entries (a submission or comment) from the database as a CSV file, which is then feed into the classifier. This returns an authoritarian score for both the entire entry as well as per sentence.
 
-Submissions are treated as top-level comments, and thus are not differentiated in the classification step and differ only slightly in their respective filtering rules during the ingestion step. In total, 361,966 entries were ingested and classified, 130,000 for the users category and 231,966 for the subreddits category.
+Submissions are treated as top-level comments, and thus are not differentiated in the classification step and differ only slightly in their respective filtering rules during the ingestion step. In total, 351,380 entries were ingested and classified, 130,000 for the users category and 221,380 for the subreddits category.
 
 \subsection{Ingestion}
 Due to compute and storage limitations, an aggressive filter was applied to reduce the size of the input data. The applied rules were:
@@ -81,7 +81,7 @@ The submission and comment data for the user category was sourced from the Pushs
 
 \subsubsection{Subreddits}
 
-The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base (\autoref{tab:subredditsSelected}). For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 231,966 entries. \autoref{tab:subreddits} describes the collected subreddits.
+The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base (\autoref{tab:subredditsSelected}). For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:subreddits} describes the collected subreddits.
 
 \begin{table*}
     \centering
