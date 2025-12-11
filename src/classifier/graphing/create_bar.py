@@ -345,8 +345,22 @@ elif args.graph == "scatter":
     x_raw = x_raw[mask]
     y = y_raw[mask].to_numpy()
 
-    # percentile-scale x so equal widths have roughly equal point counts
-    x = x_raw.rank(method="first", pct=True).to_numpy()  # in [0,1]
+    # percentile scaling but middle 90% only represents a third of the graph
+    r = x_raw.rank(method="first").to_numpy()
+    p = (r - 1) / (len(r) - 1)
+
+    # percentiles, change as needed
+    p_lo, p_hi = 0.05, 0.95
+
+    # how much axis width each percentile region gets, change as needed
+    w_left, w_mid, w_right = 1/3, 1/3, 1/3
+
+    # warp percentiles
+    x = np.interp(
+        p,
+        [0.0,  p_lo,    p_hi,  1.0],
+        [0.0,  w_left,  w_left + w_mid,  1.0],
+    )
 
     # s = dot size, alpha = dot opacity, change as needed
     ax.scatter(x, y, s=2, alpha=0.2, linewidths=0)
