@@ -85,6 +85,22 @@ The submission and comment data for the subreddit category was sourced from the 
 
 \subsection{Classification}
 
+From the SQLite database, for each subreddit, user month, and moderator month, we have the following columns:
+\begin{enumerate}
+    \setlength\itemsep{0pt}
+    \item \texttt{body}: the raw text of this message
+    \item \texttt{subreddit}: the subreddit this message was posted
+    \item \texttt{id}: the unique string associated with this message
+    \item \texttt{parent\_id}: the \texttt{id} of the message this message is replying to; empty if this message is a submission
+    \item \texttt{created\_utc}: the time which this message was posted, in Unix
+    \item \texttt{score}: the net upvotes minus downvotes this message has
+    \item \texttt{num\_sentences}: the number of sentences this message has; sentences defined by .?! followed by  whitespace, or any character followed by a new line
+    \item \texttt{distinguished}: an integer indicating whether this message was sent by a user, moderator, or admin
+\end{enumerate}
+The first part of the classification process is converting the SQLite database table into a CSV, which is done simply by a script which copies each column of the table into a corresponding column in the output CSV.
+
+Once the data is in CSV form, it can be classified using the authoritarian language classifier~\cite{classifier}, resulting in a new CSV with an extra column \texttt{auth}. This column is a floating-point number ranging from 0.0 to 1.0, which represents the authoritarian language score the classifier has assigned to the string in the \texttt{body} colummn, where 0.0 is least authoritarian and 1.0 is most authoritarian. This was the most time consuming part of the data pipeline due to the significant time it took for a message to be classified. Furthermore, preliminary results seemed to indicate that the classifier model is biased towards messages which have mention of religion or nations, rating them more authoritarian than what might be expected; this is likely due to the fact that the classifier was trained on United Nation speeches, which frequently include mention of religion and nations.
+
 \section{Results}
 
 \hl{\it Should include specific messages as examples here!}
