@@ -3,6 +3,7 @@
 \usepackage{soul}
 \usepackage{graphicx}
 \usepackage{appendix}
+\usepackage{dirtytalk}
 
 \title{The Usage of Authoritarian Language in Reddit Communities}
 \author{
@@ -45,7 +46,7 @@ Specifically, we analyze the difference in language used between users and moder
 \hl{\it TODO - should include how the classifier works here}
 
 \section{Methodology}
-\begin{figure*}
+\begin{figure*}[!htb]
     \centering
     \includegraphics[width=0.85\textwidth]{pipeline.png}
     \caption{The data pipeline, split into \textbf{A.} ingestion (filtering and preparing raw Pushshift data) and \textbf{B.} classification.}
@@ -77,11 +78,13 @@ The only difference between the submission and comment filter was that comments 
 
 \subsubsection{Users}
 
-The submission and comment data for the user category was sourced from the Pushshift monthly dumps~\cite{dump,dump07,dump08,dump09} for the 13 month period from 09/2024 to 09/2025. Each month has 355 million entries on average, with the entire dataset consisting of 4.6 billion entries. This was filtered down to 244 million points. For each month, 10,000 entries were randomly sampled, 5,000 from non-moderator users and 5,000 moderators. In total, this section of the analysis consists of 129,988 entries (12 entries were dropped due to failing to be classified) evenly distributed across a year, with 64,997 moderator entries and 64,991 non-moderator entries. \autoref{tab:monthly} describes the collected months.
+The submission and comment data for the user category was sourced from the Pushshift monthly dumps~\cite{dump,dump07,dump08,dump09} for the 13 month period from 09/2024 to 09/2025. Each month has 355 million entries on average, with the entire dataset consisting of 4.6 billion entries. This was filtered down to 244 million points. For each month, 10,000 entries were randomly sampled, 5,000 from non-moderator users and 5,000 moderators. In total, this section of the analysis consists of 129,988 entries (12 entries were dropped due to failing to be classified) evenly distributed across a year, with 64,997 moderator entries and 64,991 non-moderator entries. \autoref{tab:meta_monthly} describes the collected months.
 
 \subsubsection{Subreddits}
 
-The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base. For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:subreddits} describes the collected subreddits.
+The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base. For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:meta_subreddits} describes the collected subreddits.
+
+\hl{\it TODO - should explain what each subreddit is/represents.}
 
 \subsection{Classification}
 
@@ -99,19 +102,49 @@ From the SQLite database, for each subreddit, user month, and moderator month, w
 \end{enumerate}
 The first part of the classification process is converting the SQLite database table into a CSV, which is done simply by a script which copies each column of the table into a corresponding column in the output CSV.
 
-Once the data is in CSV form, it can be classified using the authoritarian language classifier~\cite{classifier}, resulting in a new CSV with an extra column \texttt{auth}. This column is a floating-point number ranging from 0.0 to 1.0, which represents the authoritarian language score the classifier has assigned to the string in the \texttt{body} colummn, where 0.0 is least authoritarian and 1.0 is most authoritarian. This was the most time consuming part of the data pipeline due to the significant time it took for a message to be classified. Furthermore, preliminary results seemed to indicate that the classifier model is biased towards messages which have mention of religion or nations, rating them more authoritarian than what might be expected; this is likely due to the fact that the classifier was trained on United Nation speeches, which frequently include mention of religion and nations.
+Once the data is in CSV form, it can be classified using the authoritarian language classifier~\cite{classifier}, resulting in a new CSV with an extra column \texttt{auth}. This column is a floating-point number ranging from 0.0 to 1.0, which represents the authoritarian language score the classifier has assigned to the string in the \texttt{body} column, where 0.0 is least authoritarian (defined as democratic by the classifier) and 1.0 is most authoritarian. This was the most time consuming part of the data pipeline due to the significant time it took for a message to be classified. Furthermore, preliminary results seemed to indicate that the classifier model is biased towards messages which have mention of religion or nations, rating them more authoritarian than what might be expected; this is likely due to the fact that the classifier was trained on United Nation speeches, which frequently include mention of religion and nations.
 
 \section{Results}
 
-\hl{\it Should include specific messages as examples here!}
+\hl{\it caveat about interpreting results, refernce what was said in related work}
 
 \subsection{Users}
-\begin{figure*}
+\begin{figure*}[!htb]
     \centering
     \includegraphics[width=\textwidth]{users.png}
     \caption{Left: The mean and one standard deviation (shaded) of the moderator and user posts from 09/2024 to 09/2025. Right: The total distribution of authoritarian score for moderator and user posts. (N=129,988)}
     \label{tab:users}
 \end{figure*}
+\autoref{tab:users} shows the authoritarian score for both users and moderators from 09/2024 to 09/2025. Despite similar means at $0.367$ for users and $0.335$ for moderators, their distributions are noticeably different with $p<0.01$. This is most notable in their standard deviations, where users had a higher $0.127$ standard deviation compared to the moderators' $0.092$. Interestingly, both groups had near identical values at minus one standard deviation \hl{\it(I'm not sure what the correct phrasing is, im referring to the fact that on the graph the bottoms are the same)}. Examining the user/moderator quantiles reflects this, with both the 25\% ($0.276$, $0.268$) and 50\% ($0.345$, $0.322$) quantiles being very similar. A divergence is only seen at 75\%, with users at a higher $0.440$ compared to the moderators' $0.391$. Furthermore, examining the right violin plot shows that both users and moderators had similar most common authoritarian score at $0.3$.
+
+This suggest that there exists some baseline tone/type of message that is used by both users and moderators alike across all of Reddit. Despite different distributions, both groups have the same most common score and very similar lower quantile values across the entire time period. The difference is that users, being a larger and more diverse group, had more extreme users which shifted the distribution upwards. However, a major confounder is that moderators tend to post copy-pasted responses to many users, which may bias their distribution downwards given such responses are often neutral in tone:
+
+\say{{\it If you feel your post was removed by mistake or is an exception, feel free to message the moderators using this link. Please also give a short explanation.}} (auth=0.322, quantile=0.5, moderators)
+
+Higher authoritarian scores are usually correlated with more political posts, as the classifier is likely picking up on certain keywords:
+
+\say{{\it At min 6, they show deportations.  Obama deported 3 million to 3.5 million people.  That is 1100 people per day. There is NO evidence that Obama sent 1100 people before a judge per day.  That didn't happen. Obama used the FISA courts, and deported people without due process. These historians are hypocrites.  They didn't complain when Obama deported people, ILLEGALLY}} (auth=0.746, quantile=0.99, users)
+
+And,
+
+\say{{\it Not all opinions matter. Do you have the freedom of speech? Yes. Would I take you seriously? No.}} (auth=0.746, quantile=0.99, users)
+
+However, this keyword approach means that some posts are incorrectly classified:
+
+\say{{\it Alternative strategy:\\
+\hspace*{16pt}1. Have all black orcs\\
+\hspace*{16pt}2. Send them in all at once\\
+\hspace*{16pt}3. Kill everything before WAGGGHHHH is needed}}
+
+(auth=0.746, quantile=0.99, users, referring to the {\it Warhammer 40,000} franchise)
+
+The lower authoritarian scores are usually correlated with more neutral messages about non-political topics:
+
+\say{{\it well 1st the owner has to take his share. then all the managers that you totally need to manage a complex task like division. ofc they get their share too for handling such complex tasks. And they just had to rent one external consultant for the outcome you see in the picture OP has provided.}} (auth=0.276, quantile=0.25, users)
+
+And,
+
+\say{{\it I've been happy with my Xboxes over the years. Started out with a PS2 as a kid but then moved to a 360 so we could play Halo. Have stuck with it ever since (360 in like 05 then XB One in 2013 and now a Series X since like 2022 or so?). Like other people said, take a look at the big name games that are exclusives. And if you have gamer friends, see what they run. My 3 main gamer buddies are all on Xbox so we just roll with that.}} (auth=0.276, quantile=0.25, users)
 
 \subsection{Subreddits}
 \begin{figure*}
@@ -120,6 +153,10 @@ Once the data is in CSV form, it can be classified using the authoritarian langu
     \caption{The distribution of authoritarian scores across selected subreddits. Subreddits are organized by group: (in order) control, drama, politics, and controversial. (N=221,380)}
     \label{tab:subreddits}
 \end{figure*}
+
+The difference in categorization between political and non-political speech is especially apparent in \autoref{tab:subreddits}. The political category, consisting of  \verb|r/politics|, \verb|r/Conservative|, \verb|r/democrats|, \verb|r/TheNewRight|, and \verb|r/dsa| had a significantly higher mean score at $0.485$ compared to the other categories $0.376$, $p<0.01$. Interestingly, all political subreddits had a very consistent distribution (including \verb|r/The_Donald| and \verb|r/ChapoTrapHouse| which also center around political discussion). The other subreddits congregate around the $0.3$ mark noted in the previous section.
+
+This is expected, as political subreddits are more closely related to the type of authoritarian rhetoric used in the UN given that many of the topics, i.e. geopolitics, are shared. It is also worth noting that some of the non-political subreddits explicitly ban political discussion, e.g. \verb|r/Damnthatsinteresting|, which may artificially lower their distribution.
 
 \begin{figure}
     \centering
@@ -160,7 +197,7 @@ Once the data is in CSV form, it can be classified using the authoritarian langu
         09/2024 & 328,811,163 & 17,899,637 \\ \hline
     \end{tabular}
     \caption{Processed Pushshift monthly dumps for the user category.}
-    \label{tab:monthly}
+    \label{tab:meta_monthly}
 \end{table}
 
 \section{Subreddit Metadata}
@@ -190,7 +227,7 @@ Once the data is in CSV form, it can be classified using the authoritarian langu
         & r/hobbydrama & 01/2024--12/2024 & 729,125 & 104,058   & 12,000 \\ \hline
     \end{tabular}
     \caption{Processed Pushshift subreddit dumps for the subreddits category.}
-    \label{tab:subreddits}
+    \label{tab:meta_subreddits}
 \end{table}
 
 \end{document}
