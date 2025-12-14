@@ -24,7 +24,7 @@ dl1@terpmail.umd.edu
 \section{Abstract}
 We present a dual analysis on the usage of authoritarian language in Reddit communities (subreddits), focusing on distinctions between users versus moderators and between a selection of drama, controversial, and/or political subreddits. While existing literature examines the usage of such language across governments and influential figures \hl{\it(source)}, this analysis provides a first look at how such rhetoric may be reflected in the interactions between the common man, as measured through the submissions and comments on Reddit. At its core, this work is a novel extension of the authoritarian language classifier developed by Mochtak~\cite{classifier} to the Reddit platform.
 
-We find that there is a distinct difference between the language used by users and moderators, with moderators having a lower average and a more concentrated distribution. We also show that political subreddits have significantly higher mean authoritarian scores compared to the rest of Reddit. Finally, we examine the banning of a number of extremist political subreddits to show a loose correlation between the authoritarian score and hate speech/extremism.
+We find that there is a distinct difference between the language used by users and moderators, with moderators having a lower average and a more concentrated distribution. There is also little correlation between a posts score and the associated authoritarian score. Instead, we also show that political subreddits have significantly higher mean authoritarian scores compared to the rest of Reddit. Finally, we examine the banning of a number of extremist political subreddits to show a loose correlation between the authoritarian score and hate speech/extremism.
 
 \section{Introduction}
 
@@ -150,6 +150,15 @@ And,
 
 \say{{\it I've been happy with my Xboxes over the years. Started out with a PS2 as a kid but then moved to a 360 so we could play Halo. Have stuck with it ever since (360 in like 05 then XB One in 2013 and now a Series X since like 2022 or so?). Like other people said, take a look at the big name games that are exclusives. And if you have gamer friends, see what they run. My 3 main gamer buddies are all on Xbox so we just roll with that.}} (auth=0.276, quantile=0.25, users)
 
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{scatter.png}
+    \caption{The combined user and moderator distribution of authoritarian score versus post score (net upvotes and downvotes) over the total time range from 09/2024 to 09/2025. (N=129,988)}
+    \label{tab:score}
+\end{figure}
+
+There appears to be little to no correlation between the score (the net upvotes and downvotes) of a post and the authoritarian score, as seen in \autoref{tab:score}. The distribution of authoritarian score is near to be constant for all post scores. Instead, it is more likely that authoritarian score is dependent upon the host subreddit.
+
 \subsection{Subreddits}
 \begin{figure*}
     \centering
@@ -187,13 +196,11 @@ And,
 
 Despite the misclassifications, the authoritarian score does appear to be loosely correlated with extremism. In June of 2020, Reddit banned a number of subreddits for hate speech, including \verb|r/The_Donald|, \verb|r/TheNewRight|, and \verb|r/ChapoTrapHouse|~\cite{reddit_ban_nbc}. \autoref{tab:subreddits_time} shows the time period immediately prior to each subreddits ban. Both \verb|r/The_Donald| and \verb|r/TheNewRight| saw significant increases in mean authoritarian score 1-2 months prior to their ban. This implies that there is a correlation between hate speech/extremist content and high authoritarian scores.
 
-\hl{\it very little correlation between upvotes and auth, auth is more closely related to subreddit}
-
 \section{Conclusion}
 
 We show that the language used by users and moderators are different, with moderators using less authoritarian language likely on account of templated responses that are frequently copy-pasted. However, both groups are still closely related (with similar means), suggesting that outside of the templated posts, users and moderators do interact with the wider community similarly.
 
-There is a noticeable difference though, between political and non-political subreddits. Political subreddits have significantly higher mean authoritarian scores but are a minority within the entirety of Reddit. The banning of \verb|r/The_Donald| and \verb|r/TheNewRight| shows that higher scores are loosely correlated with hate speech/extremist content, though this is not a strict relationship due to the possibility of a misclassification by the classifier.
+While there is no noticeable pattern between the score of a post and its authoritarian score, there is a large difference between subreddits. Political subreddits have significantly higher mean authoritarian scores but are a minority within the entirety of Reddit. The banning of \verb|r/The_Donald| and \verb|r/TheNewRight| shows that higher scores are loosely correlated with hate speech/extremist content, though this is not a strict relationship due to the possibility of a misclassification by the classifier.
 
 \section{Future Work}
 

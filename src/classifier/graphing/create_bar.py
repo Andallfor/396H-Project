@@ -350,7 +350,7 @@ elif args.graph == "scatter":
     p = (r - 1) / (len(r) - 1)
 
     # percentiles, change as needed
-    p_lo, p_hi = 0.05, 0.95
+    p_lo, p_hi = 0.33, 0.67
 
     # how much axis width each percentile region gets, change as needed
     w_left, w_mid, w_right = 1/3, 1/3, 1/3
@@ -402,9 +402,10 @@ elif args.graph == "scatter":
     x_name = args.x_col
     y_name = args.value_col
 
-    ax.set_xlabel(f"{x_name} percentile (raw value)")
-    ax.set_ylabel(y_name)
-    ax.set_title(f"{y_name} vs {x_name} ({label})")
+    # ax.set_xlabel(f"{x_name} percentile (raw value)")
+    ax.set_xlabel("Upvote/Downvote Score Percentile (Raw Score)")
+    # ax.set_ylabel(y_name)
+    # ax.set_title(f"{y_name} vs {x_name} ({label})")
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
 
@@ -429,7 +430,8 @@ elif args.graph == "scatter":
 
     # output filename: scatter_[<dist>_]<x-col>_<value-col>_<label>.png
     label_safe = label.replace(" ", "_")
-    out_name = f"{args.graph}_{dist_tag}{x_name}_{args.value_col}_{label_safe}.png"
+    # out_name = f"{args.graph}_{dist_tag}{x_name}_{args.value_col}_{label_safe}.png"
+    out_name = "scatter.png"
 
 # bar chart
 else:
