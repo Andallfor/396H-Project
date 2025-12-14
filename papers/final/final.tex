@@ -84,7 +84,41 @@ The submission and comment data for the user category was sourced from the Pushs
 
 The submission and comment data for the subreddit category was sourced from the Pushshift subreddit dumps~\cite{subredditsDump}, which covers the time range from 06/2005 to 12/2024. 20 subreddits were manually selected to be used in this analysis, which broadly fit into the sub-categories of drama, politics, controversial, and control (subreddits that are expected to have low authoritarian scores). Each sub-category has 5 constituent subreddits and were chosen to ensure an even distribution over the political spectrum and to have a medium to large user-base. For each subreddit, 1,000 entries were sampled per month for the most recent 12 months that had data (as some subreddits were banned). In total, this section of the analysis consists of 221,380 entries. \autoref{tab:meta_subreddits} describes the collected subreddits.
 
-\hl{\it TODO - should explain what each subreddit is/represents.}
+A brief overview of each subreddit is as follows:
+\begin{enumerate}\setlength\itemsep{0pt}
+    \item Drama
+    \begin{enumerate}
+        \item \verb|r/IAmA|: Q\&As about a notable event/profession regarding the poster.
+        \item \verb|r/AITAH|: users post a social story and seek advice on whether or not they are the "asshole" in the situation.
+        \item \verb|r/offmychest|: users post about an emotional or otherwise impactful personal experience.
+        \item \verb|r/changemyview|: users debate potentially controversial opinions.
+        \item \verb|r/unpopularopinion|: users post unpopular opinions.
+    \end{enumerate}
+    \item Politics
+    \begin{enumerate}
+        \item \verb|r/politics|: the largest US politics subreddit.
+        \item \verb|r/Conservative|: the largest subreddit for the US Republican party.
+        \item \verb|r/democrats|: the largest subreddit for the US Democratic party.
+        \item \verb|r/TheNewRight|: alt-right subreddit for the "New Right" ideology.
+        \item \verb|r/dsa|: subreddit for the Democratic Socialists of America.
+    \end{enumerate}
+    \item Controversial
+    \begin{enumerate}
+        \item \verb|r/The_Donald|: alt-right subreddit for supporters of Donald Trump.
+        \item \verb|r/ChapoTrapHouse|: left-wing subreddit for the Chapo Trap House podcast, which promotes dirtbag left (aggressive and vulgar) tactics.
+        \item \verb|r/MGTOW|: acronym for "Men Going Their Own Way," which is a misogynistic subreddit that promotes the separation of men and women.
+        \item \verb|r/antiwork|: subreddit that promotes anti-work ideologies.
+        \item \verb|r/KotakuInAction|: right-wing subreddit that centers on gaming related discourse and GamerGate.
+    \end{enumerate}
+    \item Control
+    \begin{enumerate}
+        \item \verb|r/MadeMeSmile|: users post heartwarming content.
+        \item \verb|r/explainlikeimfive|: users post questions and get responses that attempt to explain the answer simply.
+        \item \verb|r/aww|: users post pictures of cute animals.
+        \item \verb|r/Damnthatsinteresting|: users post about topics that are novel or generally interesting.
+        \item \verb|r/HobbyDrama|: long-form content that documents niche drama.
+    \end{enumerate}
+\end{enumerate}
 
 \subsection{Classification}
 
@@ -150,7 +184,7 @@ And,
 
 \say{{\it I've been happy with my Xboxes over the years. Started out with a PS2 as a kid but then moved to a 360 so we could play Halo. Have stuck with it ever since (360 in like 05 then XB One in 2013 and now a Series X since like 2022 or so?). Like other people said, take a look at the big name games that are exclusives. And if you have gamer friends, see what they run. My 3 main gamer buddies are all on Xbox so we just roll with that.}} (auth=0.276, quantile=0.25, users)
 
-\begin{figure}
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=\columnwidth]{scatter.png}
     \caption{The combined user and moderator distribution of authoritarian score versus post score (net upvotes and downvotes) over the total time range from 09/2024 to 09/2025. (N=129,988)}
@@ -160,7 +194,7 @@ And,
 There appears to be little to no correlation between the score (the net upvotes and downvotes) of a post and the authoritarian score, as seen in \autoref{tab:score}. The distribution of authoritarian score is near to be constant for all post scores. Instead, it is more likely that authoritarian score is dependent upon the host subreddit.
 
 \subsection{Subreddits}
-\begin{figure*}
+\begin{figure*}[!htb]
     \centering
     \includegraphics[width=\textwidth]{violin.png}
     \caption{The distribution of authoritarian scores across selected subreddits. Subreddits are organized by group: (in order) control, drama, politics, and controversial. (N=221,380)}
@@ -181,13 +215,13 @@ And,
 
 On the other hand, high authoritarian scores in non-political subreddits are generally due to incorrect classification as a result of the keyword sensitivity exhibited by the classifier:
 
-\say{{\it A big. Viscous. Toothy. Freaky tailed. BIG. Hamster. Lol}} (auth=0.676, quantile=0.99, \verb|r/aww|)
+\say{{\it A big. Viscous. Toothy. Freaky tailed. BIG. Hamster. Lol}} (auth=0.676, quantile=0.99 in \verb|r/aww|)
 
 And,
 
-\say{{\it This is Lucifer. Lucifer hates me. I adore Lucifer and feed him twice a day. If I go near him he attacks me.}} (auth=0.680, quantile=0.99, \verb|r/aww|)
+\say{{\it This is Lucifer. Lucifer hates me. I adore Lucifer and feed him twice a day. If I go near him he attacks me.}} (auth=0.680, quantile=0.99 in \verb|r/aww|)
 
-\begin{figure}
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=\columnwidth]{sub_time.png}
     \caption{The mean authoritarian score of r/TheNewRight, r/The\_Donald, and r/ChapoTrapHouse prior to their ban from Reddit, covering the period from 04/2019 to 04/2020. (N=28,160)}
@@ -260,26 +294,26 @@ The main challenge that restricted us from covering these topics was a lack of c
     \centering
     \begin{tabular}{|l|l|l|l|l|l|} \hline
         Category & Subreddit & Time span & Raw count & Filtered count & Sample size \\ \hline
-        Drama & r/iama & 01/2024--12/2024 & 26,418,432 & 3,498,061 & 12,000 \\ \hline
-        & r/aitah & 01/2024--12/2024 & 23,751,957 & 3,481,885 & 12,000 \\ \hline
+        Drama & r/IAmA & 01/2024--12/2024 & 26,418,432 & 3,498,061 & 12,000 \\ \hline
+        & r/AITAH & 01/2024--12/2024 & 23,751,957 & 3,481,885 & 12,000 \\ \hline
         & r/offmychest & 01/2024--12/2024 & 11,245,621 & 1,960,112 & 12,000 \\ \hline
         & r/changemyview & 01/2024--12/2024 & 15,924,864 & 4,390,646 & 12,000 \\ \hline
         & r/unpopularopinion & 01/2024--12/2024 & 49,914,916 & 4,626,244 & 12,000 \\ \hline
         Politics & r/politics & 01/2024--12/2024 & 206,228,369 & 20,588,197& 12,000 \\ \hline
-        & r/conservative & 01/2024--12/2024 & 20,126,511 & 1,329,385 & 12,000 \\ \hline
+        & r/Conservative & 01/2024--12/2024 & 20,126,511 & 1,329,385 & 12,000 \\ \hline
         & r/democrats & 01/2024--12/2024 & 2,241,816 & 139,199   & 11,806 \\ \hline
-        & r/thenewright & 04/2019--04/2020 & 182,732 & 14,612    & 4,160 \\ \hline
+        & r/TheNewRight & 04/2019--04/2020 & 182,732 & 14,612    & 4,160 \\ \hline
         & r/dsa & 01/2024--12/2024 & 99,283 & 7,930     & 1,414 \\ \hline
-        Controversial & r/the\_donald & 04/2019--04/2020 & 53,111,792 & 3,512,943 & 12,000 \\ \hline
-        & r/chapotraphouse & 04/2019--04/2020 & 10,320,276 & 510,208   & 12,000 \\ \hline
-        & r/mgtow & 02/2020--01/2021 & 5,740,257 & 787,775   & 12,000 \\ \hline
+        Controversial & r/The\_Donald & 04/2019--04/2020 & 53,111,792 & 3,512,943 & 12,000 \\ \hline
+        & r/ChapoTrapHouse & 04/2019--04/2020 & 10,320,276 & 510,208   & 12,000 \\ \hline
+        & r/MGTOW & 02/2020--01/2021 & 5,740,257 & 787,775   & 12,000 \\ \hline
         & r/antiwork & 01/2024--12/2024 & 24,104,472 & 2,346,889 & 12,000 \\ \hline
-        & r/kotakuinaction & 01/2024--12/2024 & 8,627,189 & 1,372,307 & 12,000 \\ \hline
-        Control & r/mademesmile & 01/2024--12/2024 & 17,818,417 & 598,701   & 12,000 \\ \hline
+        & r/KotakuInAction & 01/2024--12/2024 & 8,627,189 & 1,372,307 & 12,000 \\ \hline
+        Control & r/MadeMeSmile & 01/2024--12/2024 & 17,818,417 & 598,701   & 12,000 \\ \hline
         & r/explainlikeimfive & 01/2024--12/2024 & 21,128,493 & 3,702,010 & 12,000 \\ \hline
         & r/aww & 01/2024--12/2024 & 47,354,286 & 1,325,022 & 12,000 \\ \hline
-        & r/damnthatsinteresting & 01/2024--12/2024 & 25,960,408 & 960,695   & 12,000 \\ \hline
-        & r/hobbydrama & 01/2024--12/2024 & 729,125 & 104,058   & 12,000 \\ \hline
+        & r/Damnthatsinteresting & 01/2024--12/2024 & 25,960,408 & 960,695   & 12,000 \\ \hline
+        & r/HobbyDrama & 01/2024--12/2024 & 729,125 & 104,058   & 12,000 \\ \hline
     \end{tabular}
     \caption{Processed Pushshift subreddit dumps for the subreddits category.}
     \label{tab:meta_subreddits}
