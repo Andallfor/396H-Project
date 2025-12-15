@@ -1,3 +1,11 @@
+# The Usage of Authoritarian Language in Reddit
+This is an analysis on the usage of authoritarian language in Reddit developed for UMD's CMSC 396H class. The paper describing the work can be found [here](https://github.com/Andallfor/396H-Project/blob/main/papers/final/final.pdf). This repository serves as the host of the source code for the specially developed programs described in the pipeline within the paper.
+
+# Structure
+- [/src/processing](https://github.com/Andallfor/396H-Project/tree/main/src/processing): The data ingestion module; reads raw data from Pushshift .zst dumps and filters and transforms it into an SQLite database for use in the classifier.
+- [/src/classifier](https://github.com/Andallfor/396H-Project/tree/main/src/classifier): Various scripts used to classify the data.
+- [/src/python](https://github.com/Andallfor/396H-Project/tree/main/src/python): Old version of the data ingestion module written in Python. It is recommended to use the module in `/src/processing` as this version is significantly slower.
+
 # Useful Links
 - [Pushshift dumps](https://academictorrents.com/browse.php?search=RaiderBDev)
 - [Dumps by subreddit](https://academictorrents.com/details/1614740ac8c94505e4ecb9d88be8bed7b6afddd4)
@@ -8,8 +16,3 @@
 # Other
 - For .zst files, RC_* are comments, RS_* are submissions (posts)
 - You may notice that some ids have `t(integer)_` prefixed. See the [type prefixes header](https://www.reddit.com/dev/api/) for the meaning.
-
-# Issues
-- [Users can choose what posts/comments appear on their profile](https://www.reddit.com/r/reddit/comments/1l2hl4l/curate_your_reddit_profile_content_with_new/)
-- Some of the data fields are mysterious; some of the fields appear to be internal things for Reddit and are not fully documented ([source](https://www.reddit.com/r/pushshift/comments/1itme1k/comment/mevifds/))
-- Schemas differ over time
