@@ -22,18 +22,22 @@ dl1@terpmail.umd.edu
 \maketitle
 
 \section{Abstract}
-We present a dual analysis on the usage of authoritarian language in Reddit communities (subreddits), focusing on distinctions between users versus moderators and between a selection of drama, controversial, and/or political subreddits. While existing literature examines the usage of such language across governments and influential figures \hl{\it(source)}, this analysis provides a first look at how such rhetoric may be reflected in the interactions between the common man, as measured through the submissions and comments on Reddit. At its core, this work is a novel extension of the authoritarian language classifier developed by Mochtak~\cite{classifier} to the Reddit platform.
+We present a dual analysis on the usage of authoritarian language in Reddit communities (subreddits), focusing on distinctions between users versus moderators and between a selection of drama, controversial, and/or political subreddits. In contrast to existing literature, which focuses on the usage of such language across governments and influential figures~\cite{auth_lit_review}, this analysis provides a first look at how such rhetoric may be reflected in the interactions between the common man, as measured through the submissions and comments on Reddit. At its core, this work is a novel extension of the authoritarian language classifier developed by Mochtak to the Reddit platform~\cite{classifier}.
 
-We find that there is a distinct difference between the language used by users and moderators, with moderators having a lower average and a more concentrated distribution. There is also little correlation between a posts score and the associated authoritarian score. Instead, we also show that political subreddits have significantly higher mean authoritarian scores compared to the rest of Reddit. Finally, we examine the banning of a number of extremist political subreddits to show a loose correlation between the authoritarian score and hate speech/extremism.
+We find that there is a distinct difference between the language used by users and moderators, with moderators having a lower mean and a more concentrated distribution. There is also little correlation between a posts score and the associated authoritarian score. Instead, authoritarian score is more closely related to the type of subreddit, with political subreddits have significantly higher mean authoritarian scores compared to the rest of Reddit. Finally, we examine the banning of a number of extremist political subreddits to show a loose correlation between the authoritarian score and hate speech/extremism.
 
 \section{Introduction}
 
-Reddit is a popular internet forum consisting of many user created and moderated communities (subreddits), within which users discuss a broad range of topics. Reddit moderators are users with moderation powers for a given subreddit. We distinguish moderators as users with moderation powers and users as those without such privileges. Notably, these moderators are neither selected nor paid by the Reddit staff; they are typically either the creators of a given subreddit or otherwise promoted by the existing subreddit moderation team and work for free. Both moderators and users can post submissions and comments. A submission is a top-level entry that may appear on the front-page of a subreddit, while comments can be posted underneath a submission or in response to other comments. Both submissions and comments have an aggregated score metric determined by users/moderators, which is used as a proxy for popularity. We will refer to the combined submissions and comments as either "entries" or "posts."
+Reddit is a popular internet forum consisting of many user created and moderated communities (subreddits), within which users discuss a broad range of topics. Reddit moderators are users with moderation powers for a given subreddit. We distinguish moderators as users with moderation powers and users as those without such privileges. Notably, these moderators are neither selected nor paid by the Reddit staff; they are typically either the creators of a given subreddit or otherwise promoted by the existing subreddit moderation team and work for free.
+
+Both moderators and users can post submissions and comments. A submission is a top-level entry that may appear on the front-page of a subreddit, while comments are posted underneath a submission or in response to other comments. We will refer to the combined submissions and comments as either "entries" or "posts."
+
+Users and moderators can furthermore "vote" on a post, giving it either a upvote (positive) or downvote (negative). A posts score is then the net upvotes minus downvotes, which we use as a proxy for popularity.
 
 %% this is very abrupt, reword
-Authoritarian language, especially as it relates to governments or elites, is a well-researched topic\hl{\it(source)}. Less is known, however, about how this language may be reflected within the emergent online communities that characterizes the 21st century. Our primary contribution is thus the novel application of Mochtak's authoritarian language classifier~\cite{classifier} onto the submissions and comments generated by Reddit contributors. As Mochtak's classifier sourced its training data from UN speeches, this analysis will center around how such language may be replicated by Reddit contributors, and if so, whether or not it mirrors authoritarian language. We utilize the output probability as an "authoritarian score", with $1.0$ indicating very authoritarian and $0.0$ very democratic.
+Outside of Reddit, authoritarian language, especially as it relates to governments or elites, is a well-researched topic~\cite{auth_lit_review}. Less is known, however, about how this language may be reflected within the emergent online communities that characterizes the 21st century. Our primary contribution is thus the novel application of Mochtak's authoritarian language classifier~\cite{classifier} onto the submissions and comments generated by Reddit contributors. As Mochtak's classifier sourced its training data from UN speeches, this analysis will center around how such language may be replicated by Reddit contributors, and if so, whether or not it mirrors authoritarian language. We utilize the output probability as an "authoritarian score," with $1.0$ indicating "very authoritarian" and $0.0$ indicating "very democratic."
 
-Specifically, we analyze the difference in language used between users and moderators and between 20 subreddits split evenly between a political, controversial, drama and control group. For clarity, the analysis relating to the users versus moderators will be referred to as the "Users" category while the analysis relating to the subreddits will be referred to as the "Subreddits" category. We measure same values for users, moderators, and each subreddit:
+Specifically, we analyze the difference in language used between users and moderators and between 20 subreddits split evenly between a political, controversial, drama and control group. For clarity, the analysis relating to the users versus moderators will be referred to as the "Users" category while the analysis relating to the subreddits will be referred to as the "Subreddits" category. We measure the same values for users, moderators, and each subreddit:
 \begin{itemize}
     \setlength\itemsep{0pt}
     \item Distribution of authoritarian score,
@@ -41,20 +45,31 @@ Specifically, we analyze the difference in language used between users and moder
     \item Mean authoritarian score with respect to a comment's/submission's score.
 \end{itemize}
 
-\section{Related Work}
-\hl{\it TODO - should include how the classifier works here}
-
-\section{Methodology}
 \begin{figure*}[!htb]
     \centering
     \includegraphics[width=0.85\textwidth]{pipeline.png}
     \caption{The data pipeline, split into \textbf{A.} ingestion (filtering and preparing raw Pushshift data) and \textbf{B.} classification.}
     \label{tab:pipeline}
 \end{figure*}
+\section{Related Work}
 
-The data processing pipeline is described in \autoref{tab:pipeline}. Submission and comment data was derived from the Pushshift dumps~\cite{dump,subredditsDump,dump07,dump08,dump09}, then filtered and organized into an SQLite database. The classification step extracts the relevant entries (a submission or comment) from the database as a CSV file, which is then feed into the classifier. This returns an authoritarian score for both the entire entry as well as per sentence.
+There is a growing sphere of literature around Reddit's social dynamics, though none share this report's exact focus. 
 
-Submissions are treated as top-level comments, and thus are not differentiated in the classification step and differ only slightly in their respective filtering rules during the ingestion step. In total, 351,368 entries were ingested and classified, 129,988 for the users category and 221,380 for the subreddits category.
+Almerekhi developed a classifier to classify toxic Reddit submissions and comments and further investigated the divide between users, moderators, and subreddits. This work is structured very similarly to our report, albeit with a different focus and an end goal of producing a well-tuned model for classifying toxic posts (as opposed to our objective to utilize an existing model to present novel data analysis)~\cite{reddit-toxicity}.
+
+Research on authoritarianism in Reddit was also investigated by Hendricks, though was more limited in scope. His work centered on the discourse in \verb|r/The_Donald| (an alt-right subreddit centered on Donald Trump) and how self-proclaimed "authoritarian communists" within \verb|r/socialism| defined authoritarianism. His work places greater emphasis on examining how such rhetoric builds community or leads to splintered ideologies, while we focus on a more holistic analysis of authoritarianism as defined by Mochtak's classifier~\cite{communists}.
+
+Lastly, Marrazzo compares Reddit's decentralized moderation practices, e.g. delegating subreddit moderation to community moderators, to a federalist government system. This resembles our objective of comparing moderator authoritarian language to global authoritarian discourse~\cite{federalist}.
+
+Our source data is derived from from the Pushshift Reddit dumps~\cite{pushshift}. Pushshift is an API for retrieving raw Reddit data developed by Jason Baumgartner (\verb|u/Stuck_In_The_Matrix|), et al., from which we utilize the dumped data maintained by Baumgartner, \verb|u/Watchful1|, and \verb|RaiderBDev|~\cite{dump,dump07,dump08,dump09,subredditsDump}. We ingest comment and submission data for both the monthly and per-subreddit dumps, which provides us with extensive post metadata to analyze, including a post's score, body, poster status (user or moderator), and timestamp.
+
+The ingested data is classified using the authoritarian language classifier developed by Mochtak~\cite{classifier}. It is a large language model that outputs a probability a text is authoritarian, with $0.0$ representing "very democratic" and $1.0$ representing "very authoritarian." The model was trained on United Nations speeches and the V-Dem Electoral Democracy Index, where text from well known authoritarian leaders is considered to define what authoritarian speech is (and vice versa). Due to the difference in mediums between UN speeches and Reddit communities, it is necessary to note that absolute authoritarian scores should not be seen as authoritative. Instead, our analysis primarily focuses on the relative differences between users/moderators and subreddits. Additional considerations, including filtering and incorrect classifications, are further elaborated on in the Methodology and Results sections.
+
+\section{Methodology}
+
+The data processing pipeline is described in \autoref{tab:pipeline}. Submission and comment data was derived from the Pushshift dumps~\cite{dump,subredditsDump,dump07,dump08,dump09}, then filtered and organized into an SQLite database. The classification step extracts the relevant entries (a submission or comment) from the database as a CSV file then feeds it into the classifier. This returns an authoritarian score for both the entire entry as well as per sentence, which forms the basis of our analysis.
+
+Submissions are treated as top-level comments and thus are not differentiated in the classification step, though they do differ slightly in their respective filtering rules during the ingestion step. However, note that the title of a submission is stripped in order to maintain parity with comments, as comments do not have a title. In total, 351,368 entries were ingested and classified, 129,988 for the users category and 221,380 for the subreddits category.
 
 \subsection{Ingestion}
 Due to compute and storage limitations, an aggressive filter was applied to reduce the size of the input data. The applied rules were:
@@ -66,14 +81,14 @@ Due to compute and storage limitations, an aggressive filter was applied to redu
 \end{enumerate}
 Common markdown formatting was also adjusted. This includes: \begin{enumerate}
     \setlength\itemsep{0pt}
-    \item Links in the form [display](url) are replaced with "display".
-    \item Links in the form https:\verb|\\| or http:\verb|\\| are removed.
+    \item Links in the form [display](url) are replaced with "display",
+    \item Links in the form https:\verb|\\| or http:\verb|\\| are removed,
     \item Superscript (\verb|^|), blockquote (>), and header (\#) notation is removed.
 \end{enumerate}
 
 Of note is the 5 sentence minimum and restriction to the ASCII alphabet. This is because the classifier was trained off UN speeches, and so expects well-formed, long-form text. Additionally, the ASCII restriction doubles as a proxy to filter out non-English entries.
 
-The only difference between the submission and comment filter was that comments may not be from the AutoModerator bot. This is because AutoModerator comments are typically automated responses posted to most, if not all submissions, while no such pattern exists for AutoModerator submissions (which are typically manually posted by moderators).
+The only difference between the submission and comment filter was that comments may not be from the AutoModerator bot. This is because AutoModerator comments are typically automated responses posted to most, if not all, submissions, while no such pattern exists for AutoModerator submissions (which are often manually posted by moderators).
 
 \subsubsection{Users}
 
@@ -88,7 +103,7 @@ A brief overview of each subreddit is as follows:
     \item Drama
     \begin{enumerate}
         \item \verb|r/IAmA|: Q\&As about a notable event/profession regarding the poster.
-        \item \verb|r/AITAH|: users post a social story and seek advice on whether or not they are the "asshole" in the situation.
+        \item \verb|r/AITAH|: users post a story and seek advice on whether or not they were the "asshole" in the situation.
         \item \verb|r/offmychest|: users post about an emotional or otherwise impactful personal experience.
         \item \verb|r/changemyview|: users debate potentially controversial opinions.
         \item \verb|r/unpopularopinion|: users post unpopular opinions.
@@ -99,7 +114,7 @@ A brief overview of each subreddit is as follows:
         \item \verb|r/Conservative|: the largest subreddit for the US Republican party.
         \item \verb|r/democrats|: the largest subreddit for the US Democratic party.
         \item \verb|r/TheNewRight|: alt-right subreddit for the "New Right" ideology.
-        \item \verb|r/dsa|: subreddit for the Democratic Socialists of America.
+        \item \verb|r/dsa|: left-wing subreddit for the Democratic Socialists of America.
     \end{enumerate}
     \item Controversial
     \begin{enumerate}
@@ -112,53 +127,55 @@ A brief overview of each subreddit is as follows:
     \item Control
     \begin{enumerate}
         \item \verb|r/MadeMeSmile|: users post heartwarming content.
-        \item \verb|r/explainlikeimfive|: users post questions and get responses that attempt to explain the answer simply.
+        \item \verb|r/explainlikeimfive|: users post questions and receive responses that attempt to explain the answer simply.
         \item \verb|r/aww|: users post pictures of cute animals.
         \item \verb|r/Damnthatsinteresting|: users post about topics that are novel or generally interesting.
-        \item \verb|r/HobbyDrama|: long-form content that documents niche drama.
+        \item \verb|r/HobbyDrama|: long-form content that documents niche drama, with a focus on accurately and neutrally describing said drama.
     \end{enumerate}
 \end{enumerate}
 
-\subsection{Classification}
-
-From the SQLite database, for each subreddit, user month, and moderator month, we have the following columns:
-\begin{enumerate}
-    \setlength\itemsep{0pt}
-    \item \texttt{body}: the raw text of this entry
-    \item \texttt{subreddit}: the subreddit in which this entry was posted
-    \item \texttt{id}: the unique identifier associated with this entry
-    \item \texttt{parent\_id}: the \texttt{id} of the entry this entry is replying to; empty if this entry is a submission
-    \item \texttt{created\_utc}: the time which this entry was posted, as a Unix timestamp
-    \item \texttt{score}: the net upvotes minus downvotes this entry has
-    \item \texttt{num\_sentences}: the number of sentences this entry has
-    \item \texttt{distinguished}: an integer indicating whether this entry was sent by a user, moderator, or admin
-\end{enumerate}
-The first part of the classification process is converting the SQLite database table into a CSV, which is done simply by a script which copies each column of the table into a corresponding column in the output CSV.
-
-Once the data is in CSV form, it can be classified using the authoritarian language classifier~\cite{classifier}, resulting in a new CSV with an extra column \texttt{auth}. This column is a floating-point number ranging from 0.0 to 1.0, which represents the authoritarian language score the classifier has assigned to the string in the \texttt{body} column, where 0.0 is least authoritarian (defined as democratic by the classifier) and 1.0 is most authoritarian. This was the most time consuming part of the data pipeline due to the significant time it took for a entry to be classified. Furthermore, preliminary results seemed to indicate that the classifier model is biased towards entries which have mention of religion or nations, rating them more authoritarian than what might be expected; this is likely due to the fact that the classifier was trained on United Nation speeches, which frequently include mention of religion and nations.
-
-\section{Results}
-
-Our work relies on the interpretation of the authoritarian scores reported by the classifier. Thus, this analysis inherits much of the same biases and issues present in the classifier itself. The most prevalent is the classifiers reliance on keywords to inform its reported score. This can cause posts that are not authoritarian to be classified as such due to specific, out of context keywords:
-
-\say{{\it Erm. That is no Doxxie. That is no angel either. That is obviously the legendary Good Boy of 'Who's a good boy?' Clearly he is, that is Mr. Good Boy.}} (\texttt{auth}=0.677, from the \verb|r/aww| subreddit referring to a pet)
-
-Furthermore, the inherent difference between the UN speeches the classifier was trained on and the comments and submissions within the Reddit sphere means there there is not a one-to-one correlation between the authoritarianism exhibited in the UN and in Reddit. As such, authoritarian scores are only meaningful relative to each other.
-
-Finally, the relatively small sample size (compared to the total number of posts) means that the below analysis may omit some outliers.
-
-\subsection{Users}
-\begin{figure*}[!htb]
+\begin{figure*}[h]
     \centering
     \includegraphics[width=\textwidth]{users.png}
     \caption{Left: The mean and one standard deviation (shaded) of the moderator and user posts from 09/2024 to 09/2025. Right: The total distribution of authoritarian score for moderator and user posts. (N=129,988)}
     \label{tab:users}
 \end{figure*}
-\autoref{tab:users} shows the authoritarian score for both users and moderators from 09/2024 to 09/2025. Despite similar means at $0.367$ for users and $0.335$ for moderators, their distributions are noticeably different with $p<0.01$. This is most notable in their standard deviations, where users had a higher $0.127$ standard deviation compared to the moderators' $0.092$. Interestingly, both groups had near identical values at minus one standard deviation \hl{\it(I'm not sure what the correct phrasing is, im referring to the fact that on the graph the bottoms are the same)}. Examining the user/moderator quantiles reflects this, with both the 25\% ($0.276$, $0.268$) and 50\% ($0.345$, $0.322$) quantiles being very similar. A divergence is only seen at 75\%, with users at a higher $0.440$ compared to the moderators' $0.391$. Furthermore, examining the right violin plot shows that both users and moderators had similar most common authoritarian score at $0.3$.
+
+\subsection{Classification}
+
+From the SQLite database, for each subreddit, user month, and moderator month, the following columns are generated:
+\begin{enumerate}
+    \setlength\itemsep{0pt}
+    \item \texttt{body}: the raw text of the entry.
+    \item \texttt{subreddit}: the subreddit in which the entry was posted.
+    \item \texttt{id}: the unique identifier associated with the entry.
+    \item \texttt{parent\_id}: the \texttt{id} of the entry the entry is replying to; empty if the entry is a submission.
+    \item \texttt{created\_utc}: a Unix timestamp representing the time an entry was posted.
+    \item \texttt{score}: the net upvotes minus downvotes the entry has.
+    \item \texttt{num\_sentences}: a calculated value (not part of the Pushshift dumps) indicating the number of sentences the entry.
+    \item \texttt{distinguished}: an integer indicating whether this entry was sent by a user, moderator, or admin.
+\end{enumerate}
+The first part of the classification process is converting the SQLite database table into a CSV, which is done simply by a script which copies each column of the table into a corresponding column in the output CSV.
+
+Once the data is in CSV form, it is classified using the authoritarian language classifier, resulting in a new CSV with an extra column \texttt{auth}. This column is a floating-point number ranging from 0.0 to 1.0, which represents the authoritarian language score the classifier has assigned to the string in the \texttt{body} column, where 0.0 is least authoritarian (defined as democratic by the classifier) and 1.0 is most authoritarian. This was the most time consuming part of the data pipeline due to the significant time it took for a entry to be classified.
+
+\section{Results}
+
+Our work relies on the interpretation of the authoritarian scores reported by the classifier. Thus, this analysis inherits much of the same biases and issues present in the classifier itself. The most prevalent is the classifiers reliance on keywords (often related to religion or nations) to inform its reported score. This can cause posts that are not authoritarian to be classified as such due to specific, out of context keywords:
+
+\say{{\it Erm. That is no Doxxie. That is no angel either. That is obviously the legendary Good Boy of 'Who's a good boy?' Clearly he is, that is Mr. Good Boy.}} (\texttt{auth}=0.677, in \verb|r/aww| referring to a pet)
+
+Furthermore, the inherent difference between the UN speeches the classifier was trained on and the comments and submissions within the Reddit sphere means that there is not a one-to-one correlation between the authoritarianism exhibited in the UN and in Reddit. This is partially alleviated by the ingestion filter by attempting to only classify long-form, well-structured posts that are more likely to resemble the classifier's training data. Therefore, we consider authoritarian scores to only be meaningful relative to each other.
+
+Finally, the relatively small sample size (compared to the total number of posts) means that the following analysis may omit some outliers.
+
+\subsection{Users}
+
+\autoref{tab:users} shows the authoritarian score for both users and moderators from 09/2024 to 09/2025. Despite similar means at $0.367$ for users and $0.335$ for moderators, their distributions are noticeably different with $p<0.01$. The users had a heavier right skew, leading to a higher standard deviation of $0.127$ compared to the moderators' $0.092$, despite the distribution to the left of the median being very similar. Examining the user/moderator quantiles reflects this, with both the 25\% ($0.276$, $0.268$) and 50\% ($0.345$, $0.322$) quantiles being very similar (users, moderators). A divergence is only seen at 75\%, with users at a higher $0.440$ compared to the moderators' $0.391$. Furthermore, examining the right violin plot shows that both users and moderators had similar most common authoritarian score at around $0.3$.
 
 This suggest that there exists some baseline tone/type of post that is used by both users and moderators alike across all of Reddit. Despite different distributions, both groups have the same most common score and very similar lower quantile values across the entire time period. The difference is that users, being a larger and more diverse group, had more extreme users which shifted the distribution upwards. However, a major confounder is that moderators tend to post copy-pasted responses to many users, which may bias their distribution downwards given such responses are often neutral in tone:
 
-\say{{\it If you feel your post was removed by mistake or is an exception, feel free to message the moderators using this link. Please also give a short explanation.}} (\texttt{auth}=0.322, quantile=0.5, moderators)
+\say{{\it If you feel your post was removed by mistake or is an exception, feel free to message the moderators using this link. Please also give a short explanation.}} (\texttt{auth}=0.322, quantile=0.5,moderators)
 
 Higher authoritarian scores are usually correlated with more political posts, as the classifier is likely picking up on certain keywords:
 
@@ -204,9 +221,9 @@ There appears to be little to no correlation between the score (the net upvotes 
 
 The difference in categorization between political and non-political speech is especially apparent in \autoref{tab:subreddits}. The political category, consisting of  \verb|r/politics|, \verb|r/Conservative|, \verb|r/democrats|, \verb|r/TheNewRight|, and \verb|r/dsa| had a significantly higher mean score at $0.485$ compared to the other categories $0.376$, $p<0.01$. Interestingly, all political subreddits had a very consistent distribution (including \verb|r/The_Donald| and \verb|r/ChapoTrapHouse| which also center around political discussion). The other subreddits congregate around the $0.3$ mark noted in the previous section.
 
-This is expected, as political subreddits are more closely related to the type of authoritarian rhetoric used in the UN given that many of the topics, i.e. geopolitics, are shared. It is also worth noting that some of the non-political subreddits explicitly ban political discussion, e.g. \verb|r/Damnthatsinteresting|, which may artificially lower their distribution. But as the mean user authoritarian score in the previous section is closer to the mean in non-political subreddits, political subreddits do not appear to dominate discourse on Reddit.
+This is expected, as political subreddits are more closely related to the type of authoritarian rhetoric used in the UN given that many of the topics, i.e. geopolitics, are shared. It is also worth noting that some of the non-political subreddits explicitly ban political discussion, e.g. \verb|r/Damnthatsinteresting|, which may artificially lower their distribution. As the mean user authoritarian score in the previous section is closer to the mean in non-political subreddits, political subreddits do not appear to dominate discourse on Reddit.
 
-High authoritarian scores within the political subreddits explicitly mention various political topics, though are not bias towards either conservative or liberal views (as most of the political subreddits sampled focus primarily on American politics):
+High authoritarian scores within the political subreddits explicitly mention various political topics, though are not biased towards either conservative or liberal views (most of the political subreddits sampled center around American politics):
 
 \say{{\it Oh, something is coming, and this time we're prepared for that. The only question is what is coming. And I'm not shocked that Biden is up, because no version of Biden will save him in the general. He has been yelling at Garland to ramp up the prosecutions but it hasn't worked. He's a decaying old figure who, no matter what he does won't become younger by election day. People have realized that it's his DEI marxist staffers that are running the show.}} (\texttt{auth}=0.813, quantile=0.99)
 
@@ -214,13 +231,13 @@ And,
 
 \say{{\it .. not to mention mental acuity, generosity and above all, class .. that Drumpf could now never possess in his geriatric insanity .. as far as winning in November .. that could be up to the Electoral College and fuckery by Drumpf's domestic terrorist Cult of MAGA and foreign enemies of the United States of America ..}} (\texttt{auth}=0.814, quantile=0.99)
 
-On the other hand, high authoritarian scores in non-political subreddits are generally due to incorrect classification as a result of the keyword sensitivity exhibited by the classifier:
+On the other hand, high authoritarian scores in non-political subreddits are generally due to incorrect classification as a result of the keyword sensitivity exhibited by the classifier, though they are still lower than those in the political subreddits:
 
-\say{{\it A big. Viscous. Toothy. Freaky tailed. BIG. Hamster. Lol}} (\texttt{auth}=0.676, quantile=0.99 in \verb|r/aww|)
+\say{{\it A big. Viscous. Toothy. Freaky tailed. BIG. Hamster. Lol}} (\texttt{auth}=0.676, quantile=0.99, in \verb|r/aww|)
 
 And,
 
-\say{{\it This is Lucifer. Lucifer hates me. I adore Lucifer and feed him twice a day. If I go near him he attacks me.}} (\texttt{auth}=0.680, quantile=0.99 in \verb|r/aww|)
+\say{{\it This is Lucifer. Lucifer hates me. I adore Lucifer and feed him twice a day. If I go near him he attacks me.}} (\texttt{auth}=0.680, quantile=0.99, in \verb|r/aww|)
 
 \begin{figure}[!htb]
     \centering
@@ -229,11 +246,11 @@ And,
     \label{tab:subreddits_time}
 \end{figure}
 
-Despite the misclassifications, the authoritarian score does appear to be loosely correlated with extremism. In June of 2020, Reddit banned a number of subreddits for hate speech, including \verb|r/The_Donald|, \verb|r/TheNewRight|, and \verb|r/ChapoTrapHouse|~\cite{reddit_ban_nbc}. \autoref{tab:subreddits_time} shows the time period immediately prior to each subreddits ban. Both \verb|r/The_Donald| and \verb|r/TheNewRight| saw significant increases in mean authoritarian score 1-2 months prior to their ban. This implies that there is a correlation between hate speech/extremist content and high authoritarian scores.
+Despite the misclassifications, the authoritarian score does appear to be loosely correlated with extremism. In June of 2020, Reddit banned a number of subreddits for hate speech, including \verb|r/The_Donald|, \verb|r/TheNewRight|, and \verb|r/ChapoTrapHouse|~\cite{reddit_ban_nbc}. \autoref{tab:subreddits_time} shows the time period immediately prior to each subreddits ban. Both \verb|r/The_Donald| and \verb|r/TheNewRight| saw significant increases in mean authoritarian score 1-2 months prior to their ban, which may reflect the hate speech/extremist views Reddit banned the subreddits for. This implies that there is a correlation between hate speech/extremist content and increasing authoritarian scores.
 
 \section{Conclusion}
 
-We show that the language used by users and moderators are different, with moderators using less authoritarian language likely on account of templated responses that are frequently copy-pasted. However, both groups are still closely related (with similar means), suggesting that outside of the templated posts, users and moderators do interact with the wider community similarly.
+We show that the language used by users and moderators are different, with moderators using less authoritarian language likely on account of neutral templated responses that are frequently copy-pasted. However, both groups are still closely related (with similar means), suggesting that outside of the templated posts, users and moderators do interact with the wider community similarly.
 
 While there is no noticeable pattern between the score of a post and its authoritarian score, there is a large difference between subreddits. Political subreddits have significantly higher mean authoritarian scores but are a minority within the entirety of Reddit. The banning of \verb|r/The_Donald| and \verb|r/TheNewRight| shows that higher scores are loosely correlated with hate speech/extremist content, though this is not a strict relationship due to the possibility of a misclassification by the classifier.
 
@@ -241,11 +258,11 @@ While there is no noticeable pattern between the score of a post and its authori
 
 A number of other features were planned, including:
 \begin{enumerate}
-    \item User replies to moderators (and vice versa),
+    \item Authoritarian score when a user replies to a moderator (and vice versa),
     \item If user/moderator language changes based on the language of the post being replied to,
-    \item Sorting moderators by activity and/or how many subreddits they moderator,
     \item If user/moderator language changes depending on the subreddit they are posting in,
-    \item And a longer time period analysis to see if major world events correlates to spikes in authoritarian score.
+    \item Sorting moderators by activity and/or how many subreddits they moderate,
+    \item A longer time period analysis to see if major world events correlates to spikes in authoritarian score.
 \end{enumerate}
 
 More work could also be done on filtering the posts (e.g. stripping advanced markdown syntax or using an advanced language detect to remove all non-English posts) and excluding bots in addition to AutoModerator (which may be difficult as Reddit treats bots as identical to user accounts).
@@ -258,7 +275,11 @@ More work could also be done on filtering the posts (e.g. stripping advanced mar
 % 13 hours for months (assuming 1 hour per month)
 % 25 hours of subreddits (assuming 75 mins per subreddit as per kyles email)
 
-The main challenge that restricted us from covering these topics was a lack of compute and storage resources. In total, the raw data for the 13 month period for the users category took approximately 520 GiB, and the subreddits took an additional 74 GiB. This represents approximately 6.6 billion entries. In total, upwards of 80 hours were spent just gathering, processing, and classifying the data. Furthermore, much of the pipeline described in \autoref{tab:pipeline} was specially developed for this project (notably the ingestion and filtering from Pushshift and the scripts to wrap the classifier). As such, more extensive analysis or data coverage was infeasible for this report.
+The main challenge that restricted us from covering these topics was a lack of compute and storage resources. In total, the raw data for the 13 month period for the users category took approximately 520 GiB, and the subreddits took an additional 74 GiB. This represents approximately 6.6 billion entries, which took upwards of 80 hours to gather, process, and classify. Furthermore, much of the pipeline described in \autoref{tab:pipeline} was specially developed for this project (notably the ingestion and filtering from Pushshift and the scripts to wrap the classifier). As such, more extensive analysis or data coverage was infeasible for this report.
+
+\section{Artifacts}
+
+The source code for this report is publicly available and includes the classifying scripts and the data ingestion module. The actual processed dumps or classified text is not included due to storage limitations~\cite{source_code}.
 
 \bibliographystyle{plain}
 \bibliography{../refs}
